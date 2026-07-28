@@ -1,0 +1,22 @@
+name: guide_scolaire
+description: Guide Scolaire Comores
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2   #
+  dio: ^5.4.0                          
+  pretty_dio_logger: ^1.4.0  
+  shared_preferences: ^2.3.0   
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
