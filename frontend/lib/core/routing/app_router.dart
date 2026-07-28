@@ -5,78 +5,45 @@ import 'app_routes.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/auth/presentation/screens/login_page.dart';
 import '../../features/auth/presentation/screens/register_page.dart';
+import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      // 🏠 Accueil
       case AppRoutes.home:
-        return MaterialPageRoute(
-          builder: (_) => HomeScreen(), // pas de const
-        );
-      
-      // 🔐 Connexion
+        return MaterialPageRoute(builder: (_) =>  HomeScreen());
+
       case AppRoutes.login:
-        return MaterialPageRoute(
-          builder: (_) => LoginPage(), // pas de const
-        );
-      
-      // 📝 Inscription (placeholder temporaire)
+        return MaterialPageRoute(builder: (_) => const LoginPage());
+
       case AppRoutes.register:
-        return MaterialPageRoute(
-          builder: (_) => RegisterPage(),
-        );
-      
-      // 📊 Tableau de bord (placeholder temporaire)
+        return MaterialPageRoute(builder: (_) => const RegisterPage());
+
       case AppRoutes.dashboard:
-        return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(
-              title: const Text('Tableau de bord'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () {
-                    // TODO: Déconnexion
-                  },
-                ),
-              ],
-            ),
-            body: const Center(
-              child: Text('Bienvenue sur votre tableau de bord !'),
-            ),
-          ),
-        );
-      
-      // 📄 Détail d'un cours (ex: /course/123)
+        return MaterialPageRoute(builder: (_) => const DashboardScreen());
+
       case String route when route.startsWith('/course/'):
         final id = route.split('/').last;
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: Text('Détail du cours #$id')),
-            body: Center(
-              child: Text('Cours ID : $id'),
-            ),
+            appBar: AppBar(title: Text('Cours #$id')),
+            body: Center(child: Text('Page du cours $id (à venir)')),
           ),
         );
-      
-      // 🔄 Route par défaut (404)
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
             body: Center(
-              child: Text(
-                '🚫 Route non trouvée : ${settings.name}',
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text('🚫 Route non trouvée : ${settings.name}'),
             ),
           ),
         );
     }
   }
 
-  // --- Utilitaires de navigation ---
-
+  // --- Navigation helpers ---
   static void pushNamed(BuildContext context, String routeName, {Object? arguments}) {
     Navigator.pushNamed(context, routeName, arguments: arguments);
   }

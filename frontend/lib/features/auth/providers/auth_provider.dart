@@ -13,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
   String? _token;
   String? _userEmail;
   String? _userName;
+  String? _userLevel;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
@@ -21,6 +22,7 @@ class AuthProvider extends ChangeNotifier {
   String? get token => _token;
   String? get userEmail => _userEmail;
   String? get userName => _userName;
+  String? get userLevel => _userLevel;
 
   AuthProvider() {
     _init();
@@ -40,19 +42,20 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await apiClient.post(
         '/auth/login',
-        data: {
-          'email': email,
-          'password': password,
-        },
+        data: {'email': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         _token = data['access_token'];
         _userEmail = email;
+        _userName = 'Utilisateur'; // Sera remplacé par le vrai nom
         _isAuthenticated = true;
         _isLoading = false;
         notifyListeners();
+
+        // Récupérer les infos du profil après connexion
+        await _fetchUserProfile();
         return true;
       } else {
         _error = 'Erreur de connexion';
@@ -73,12 +76,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _fetchUserProfile() async {
+    try {
+      final response = await apiClient.get('/auth/me');
+      if (response.statusCode == 200) {
+        final data = response.data;
+        _userName = '${data['first_name']} ${data['last_name']}';
+        _userLevel = data['level'];
+        notifyListeners();
+      }
+    } catch (e) {
+      // On garde les valeurs par défaut
+    }
+  }
+
   Future<bool> register({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
     required String level,
+    String? school,
+    String? phoneNumber,
   }) async {
     _isLoading = true;
     _error = null;
@@ -93,6 +112,8 @@ class AuthProvider extends ChangeNotifier {
           'first_name': firstName,
           'last_name': lastName,
           'level': level,
+          'school': school,
+          'phone_number': phoneNumber,
         },
       );
 
@@ -124,6 +145,7 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _userEmail = null;
     _userName = null;
+    _userLevel = null;
     notifyListeners();
   }
 

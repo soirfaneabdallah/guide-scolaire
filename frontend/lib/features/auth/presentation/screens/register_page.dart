@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../../../core/routing/app_routes.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -92,12 +92,12 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(
+        SnackBar(
           content: Text('🎉 Compte créé avec succès !'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(10),
           ),
         ),
       );

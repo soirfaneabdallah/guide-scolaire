@@ -1,4 +1,21 @@
-# frontend/.gitignore
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.lock
+
+# Environnements
 .env
 .env.*
 *.env
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log

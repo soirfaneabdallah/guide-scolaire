@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'features/providers/auth_provider.dart';
+import 'features/auth/providers/auth_provider.dart';
 import 'core/routing/app_router.dart';
 import 'core/routing/app_routes.dart';
 // Supprimer l'import de flutter_dotenv
