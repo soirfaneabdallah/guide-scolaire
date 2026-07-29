@@ -3,9 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
-//import '../../../core/config/environment.dart';
 
 class AuthProvider extends ChangeNotifier {
+  // Constructeur sans paramètre (ApiClient sera injecté plus tard)
+  AuthProvider();
+
+  ApiClient? _apiClient;
+
   bool _isAuthenticated = false;
   bool _isLoading = false;
   bool _isInitialized = false;
@@ -14,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
   String? _userEmail;
   String? _userName;
   String? _userLevel;
+  int? _userId;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
@@ -23,24 +28,33 @@ class AuthProvider extends ChangeNotifier {
   String? get userEmail => _userEmail;
   String? get userName => _userName;
   String? get userLevel => _userLevel;
+  int? get userId => _userId;
 
-  AuthProvider() {
-    _init();
+  // 🔧 Méthode pour injecter ApiClient après la création
+  void setApiClient(ApiClient apiClient) {
+    _apiClient = apiClient;
   }
 
-  void _init() {
-    // TODO: Vérifier le token stocké localement
+  // 🔧 Méthode d'initialisation
+  Future<void> init() async {
+    // TODO: Charger la session depuis le stockage local (SharedPreferences)
     _isInitialized = true;
     notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {
+    if (_apiClient == null) {
+      _error = 'ApiClient non initialisé';
+      notifyListeners();
+      return false;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await apiClient.post(
+      final response = await _apiClient!.post(
         '/auth/login',
         data: {'email': email, 'password': password},
       );
@@ -49,12 +63,10 @@ class AuthProvider extends ChangeNotifier {
         final data = response.data;
         _token = data['access_token'];
         _userEmail = email;
-        _userName = 'Utilisateur'; // Sera remplacé par le vrai nom
         _isAuthenticated = true;
         _isLoading = false;
         notifyListeners();
 
-        // Récupérer les infos du profil après connexion
         await _fetchUserProfile();
         return true;
       } else {
@@ -77,12 +89,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _fetchUserProfile() async {
+    if (_apiClient == null) return;
+
     try {
-      final response = await apiClient.get('/auth/me');
+      final response = await _apiClient!.get('/auth/me');
       if (response.statusCode == 200) {
         final data = response.data;
         _userName = '${data['first_name']} ${data['last_name']}';
         _userLevel = data['level'];
+        _userId = data['id'];
         notifyListeners();
       }
     } catch (e) {
@@ -99,12 +114,18 @@ class AuthProvider extends ChangeNotifier {
     String? school,
     String? phoneNumber,
   }) async {
+    if (_apiClient == null) {
+      _error = 'ApiClient non initialisé';
+      notifyListeners();
+      return false;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await apiClient.post(
+      final response = await _apiClient!.post(
         '/auth/register',
         data: {
           'email': email,
@@ -146,6 +167,7 @@ class AuthProvider extends ChangeNotifier {
     _userEmail = null;
     _userName = null;
     _userLevel = null;
+    _userId = null;
     notifyListeners();
   }
 

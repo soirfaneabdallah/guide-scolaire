@@ -13,5 +13,6 @@ class AppRoutes {
   static const String handwriting = '/handwriting';
   static const String chat = '/chat';
 
+
   static String courseDetail(String id) => '/course/$id';
 }

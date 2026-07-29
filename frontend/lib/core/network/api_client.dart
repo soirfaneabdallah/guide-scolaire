@@ -3,19 +3,16 @@
 import 'package:dio/dio.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../config/environment.dart';
+import '../../features/auth/providers/auth_provider.dart';
 
 class ApiClient {
-  static final ApiClient _instance = ApiClient._internal();
-  late final Dio _dio;
-
-  factory ApiClient() {
-    return _instance;
-  }
-
-  ApiClient._internal() {
+  ApiClient({
+    required AuthProvider authProvider,
+  }) : _authProvider = authProvider {
     _dio = Dio(
       BaseOptions(
-        baseUrl: EnvironmentConfig.apiBase,
+        // 🔥 CORRECTION ICI : Utiliser apiBase au lieu de baseUrl
+        baseUrl: EnvironmentConfig.apiBase,  // 👈 http://localhost:8000/api/v1
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {
@@ -25,21 +22,18 @@ class ApiClient {
       ),
     );
 
-    // Intercepteur pour ajouter le token JWT automatiquement
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Récupérer le token depuis le stockage local
-          final token = await _getToken();
-          if (token != null) {
+          final token = _authProvider.token;
+          if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // Si token expiré (401), on peut tenter un refresh
           if (error.response?.statusCode == 401) {
-            // TODO: Implémenter le refresh token
+            _authProvider.logout();
           }
           return handler.next(error);
         },
@@ -62,14 +56,11 @@ class ApiClient {
     }
   }
 
-  Future<String?> _getToken() async {
-    // TODO: Récupérer le token depuis SharedPreferences ou Hive
-    return null;
-  }
+  late final Dio _dio;
+  final AuthProvider _authProvider;
 
   Dio get dio => _dio;
 
-  // Méthodes utilitaires
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) {
     return _dio.get(path, queryParameters: queryParameters);
   }
@@ -90,6 +81,3 @@ class ApiClient {
     return _dio.patch(path, data: data);
   }
 }
-
-// Singleton global pour faciliter l'utilisation
-final apiClient = ApiClient();
