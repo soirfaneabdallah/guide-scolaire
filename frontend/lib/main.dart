@@ -3,9 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/presentation/screens/login_page.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/chat/repositories/chat_repository.dart';
-import 'features/home/presentation/screens/home_screen.dart';
+import 'features/dashboard/providers/dashboard_provider.dart';
+import 'features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'features/home/presentation/screens/home_screen.dart';  // 👈 AJOUTER CET IMPORT
 import 'core/network/api_client.dart';
 import 'core/routing/app_router.dart';
 import 'core/routing/app_routes.dart';
@@ -59,6 +62,9 @@ class _MyAppState extends State<MyApp> {
             );
           },
         ),
+        ChangeNotifierProvider(
+          create: (context) => DashboardProvider(),
+        ),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
@@ -71,13 +77,7 @@ class _MyAppState extends State<MyApp> {
                     children: [
                       CircularProgressIndicator(),
                       SizedBox(height: 16),
-                      Text(
-                        'Chargement...',
-                        style: TextStyle(
-                          color: Color(0xFF1E2937),
-                          fontSize: 16,
-                        ),
-                      ),
+                      Text('Chargement...'),
                     ],
                   ),
                 ),
@@ -86,15 +86,15 @@ class _MyAppState extends State<MyApp> {
           }
 
           return MaterialApp(
-            title: 'Guide Scolaire Comores',
+            title: 'E-learningAI',
             theme: ThemeData(
               primarySwatch: Colors.green,
               useMaterial3: true,
               fontFamily: 'Poppins',
               scaffoldBackgroundColor: const Color(0xFFF8FAFC),
             ),
-            // 🔥 CORRECTION : Enlever le const
-            home: HomeScreen(),  // 👈 Plus de const
+            // 🔥 CORRECTION : On met TOUJOURS la page d'accueil en premier
+            home:  HomeScreen(),  // 👈 Page d'accueil publique
             onGenerateRoute: AppRouter.generateRoute,
             debugShowCheckedModeBanner: false,
           );

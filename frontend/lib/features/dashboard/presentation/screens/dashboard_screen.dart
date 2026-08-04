@@ -2,236 +2,255 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/routing/app_routes.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../widgets/dashboard_sidebar.dart';
+import '../../widgets/dashboard_subject_chat.dart';
 import '../../../auth/providers/auth_provider.dart';
-
-class DashboardScreen extends StatelessWidget {
+import '../../../cahier/presentation/screens/cahier_screen.dart';
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
 
-    if (!authProvider.isAuthenticated) {
+class _DashboardScreenState extends State<DashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+    final provider = Provider.of<DashboardProvider>(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // 👇 Définition des breakpoints
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+    final isDesktop = screenWidth >= 900;
+
+    if (!auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       });
-      return const SizedBox.shrink();
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final userName = authProvider.userName ?? 'élève';
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) greeting = '🌅 Bonjour';
-    else if (hour < 18) greeting = '☀️ Bon après-midi';
-    else greeting = '🌙 Bonsoir';
-
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Guide Scolaire',
-          style: TextStyle(
-            color: Color(0xFF1E2937),
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xFF2E7D32),
-              child: Text(
-                'Y',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+      key: _scaffoldKey,
+      backgroundColor: AppColors.background,
+      appBar: isMobile ? _buildMobileAppBar() : null,
+      drawer: isMobile ? const DashboardSidebar() : null,
+      body: Row(
+        children: [
+          // 👇 Sidebar : cachée sur mobile, réduite sur tablette, complète sur desktop
+          if (!isMobile)
+            Container(
+              width: isTablet ? 72 : 260,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  right: BorderSide(color: AppColors.divider.withOpacity(0.5)),
                 ),
               ),
+              child: DashboardSidebar(
+                isCompact: isTablet,
+              ),
             ),
-            onPressed: () {
-              // TODO: Aller au profil
-            },
+          // Ligne de séparation (uniquement sur desktop)
+          if (isDesktop)
+            Container(
+              width: 1,
+              color: AppColors.divider.withOpacity(0.5),
+            ),
+          // Contenu principal
+          Expanded(
+            child: _buildContent(provider, isMobile),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+    );
+  }
+
+  AppBar _buildMobileAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+        onPressed: () {
+          _scaffoldKey.currentState?.openDrawer();
+        },
+      ),
+      title: const Text(
+        'E-learningAI',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      actions: [
+        CircleAvatar(
+          radius: 16,
+          backgroundColor: AppColors.primary,
+          child: const Text(
+            'M',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildContent(DashboardProvider provider, bool isMobile) {
+    // Onglet 2 : Exercices
+    if (provider.selectedIndex == 2) {
+      return _ExercisesView(isMobile: isMobile);
+    }
+
+    // Onglet 3 : Cahier de correction
+    if (provider.selectedIndex == 3) {
+      return const CahierScreen();
+    }
+
+    if (provider.selectedIndex == 4) {
+    return _BibliothequeView(isMobile: isMobile);
+  }
+    // Onglet 0 : Accueil (chat par matière)
+    return DashboardSubjectChat(
+      subjectSlug: provider.selectedSubjectSlug,
+      isMobile: isMobile,
+    );
+  }
+}
+
+// ===== VUE EXERCICES (responsive) =====
+class _ExercisesView extends StatelessWidget {
+  const _ExercisesView({required this.isMobile});
+
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 16 : 32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Message de bienvenue
+            Icon(
+              Icons.edit_note_outlined,
+              size: isMobile ? 40 : 48,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 16),
             Text(
-              '$greeting, $userName ! 👋',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E2937),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Pose ta question, ton assistant est là pour t\'aider.',
+              '📝 Exercices',
               style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF64748B),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Zone de saisie + bouton
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Pose ta question...',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 16,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      onSubmitted: (_) => _goToChat(context),
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.send,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                      onPressed: () => _goToChat(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Suggestions
-            const Text(
-              '💡 Exemples de questions',
-              style: TextStyle(
-                fontSize: 14,
+                fontSize: isMobile ? 18 : 20,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
+                color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
-
-            _SuggestionChip(
-              text: 'Comment résoudre une équation ?',
-              onTap: () => _goToChatWith(context, 'Comment résoudre une équation ?'),
-            ),
             const SizedBox(height: 8),
-            _SuggestionChip(
-              text: 'Explique-moi le théorème de Pythagore',
-              onTap: () => _goToChatWith(context, 'Explique-moi le théorème de Pythagore'),
-            ),
-            const SizedBox(height: 8),
-            _SuggestionChip(
-              text: 'Comment conjuguer le passé simple ?',
-              onTap: () => _goToChatWith(context, 'Comment conjuguer le passé simple ?'),
-            ),
-
-            const Spacer(),
-
-            // Petit message en bas
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.check_circle_outline,
-                  color: Color(0xFF2E7D32),
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  '100% gratuit pour les élèves comoriens',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            Text(
+              'Page des exercices (à venir)',
+              style: TextStyle(
+                fontSize: isMobile ? 13 : 14,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  void _goToChat(BuildContext context) {
-    Navigator.pushNamed(context, AppRoutes.chat);
-  }
+// ===== VUE CAHIER (responsive) =====
+class _CahierView extends StatelessWidget {
+  const _CahierView({required this.isMobile});
 
-  void _goToChatWith(BuildContext context, String question) {
-    // TODO: Passer la question au chat
-    Navigator.pushNamed(
-      context,
-      AppRoutes.chat,
-      arguments: {'question': question},
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 16 : 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.draw_outlined,
+              size: isMobile ? 40 : 48,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '🖊️ Cahier de correction',
+              style: TextStyle(
+                fontSize: isMobile ? 18 : 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Page du cahier numérique (à venir)',
+              style: TextStyle(
+                fontSize: isMobile ? 13 : 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({
-    required this.text,
-    required this.onTap,
-  });
 
-  final String text;
-  final VoidCallback onTap;
+class _BibliothequeView extends StatelessWidget {
+  const _BibliothequeView({required this.isMobile});
+
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Row(
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 16 : 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Color(0xFF94A3B8),
-              size: 14,
+            Icon(
+              Icons.library_books_outlined,
+              size: isMobile ? 40 : 48,
+              color: AppColors.textTertiary,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(
-                  color: Color(0xFF1E2937),
-                  fontSize: 14,
-                ),
+            const SizedBox(height: 16),
+            Text(
+              '📚 Bibliothèque numérique',
+              style: TextStyle(
+                fontSize: isMobile ? 18 : 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Page de la bibliothèque (à venir)',
+              style: TextStyle(
+                fontSize: isMobile ? 13 : 14,
+                color: AppColors.textSecondary,
               ),
             ),
           ],

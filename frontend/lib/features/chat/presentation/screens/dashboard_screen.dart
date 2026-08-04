@@ -123,7 +123,7 @@ class DashboardScreen extends StatelessWidget {
           decoration: InputDecoration(
             hintText: 'Pose ta question...',
             hintStyle: TextStyle(
-              color: AppColors.textDisabled,
+              color: AppColors.primary,
               fontSize: 16,
             ),
             prefixIcon: Icon(

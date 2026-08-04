@@ -5,11 +5,11 @@ import 'package:provider/provider.dart';
 import '../../features/auth/presentation/screens/login_page.dart';
 import '../../features/auth/presentation/screens/register_page.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
-import '../../features/chat/presentation/screens/dashboard_screen.dart';
 import '../../features/chat/presentation/providers/chat_provider.dart';
 import '../../features/chat/repositories/chat_repository.dart';
-//import '../../features/chat/repositories/i_chat_repository.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/home/presentation/screens/home_screen.dart';  // 👈 AJOUTER
+import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../network/api_client.dart';
 import 'app_routes.dart';
 
@@ -18,11 +18,17 @@ class AppRouter {
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      // 🔥 CORRECTION : Séparer home et dashboard
       case AppRoutes.home:
+        return _fadeRoute(
+          settings,
+          (_) =>  HomeScreen(),  // ✅ Page d'accueil publique
+        );
+
       case AppRoutes.dashboard:
         return _fadeRoute(
           settings,
-          (_) => const DashboardScreen(),
+          (_) => const DashboardScreen(),  // ✅ Dashboard après connexion
         );
 
       case AppRoutes.login:
