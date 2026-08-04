@@ -9,6 +9,9 @@ import '../../widgets/dashboard_sidebar.dart';
 import '../../widgets/dashboard_subject_chat.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../cahier/presentation/screens/cahier_screen.dart';
+import '../../../exercises/presentation/screens/exercices_screen.dart';
+import '../../../exercises/providers/exercices_provider.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -25,7 +28,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final provider = Provider.of<DashboardProvider>(context);
     final screenWidth = MediaQuery.of(context).size.width;
     
-    // 👇 Définition des breakpoints
     final isMobile = screenWidth < 600;
     final isTablet = screenWidth >= 600 && screenWidth < 900;
     final isDesktop = screenWidth >= 900;
@@ -44,7 +46,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       drawer: isMobile ? const DashboardSidebar() : null,
       body: Row(
         children: [
-          // 👇 Sidebar : cachée sur mobile, réduite sur tablette, complète sur desktop
           if (!isMobile)
             Container(
               width: isTablet ? 72 : 260,
@@ -58,13 +59,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 isCompact: isTablet,
               ),
             ),
-          // Ligne de séparation (uniquement sur desktop)
           if (isDesktop)
             Container(
               width: 1,
               color: AppColors.divider.withOpacity(0.5),
             ),
-          // Contenu principal
           Expanded(
             child: _buildContent(provider, isMobile),
           ),
@@ -112,7 +111,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildContent(DashboardProvider provider, bool isMobile) {
     // Onglet 2 : Exercices
     if (provider.selectedIndex == 2) {
-      return _ExercisesView(isMobile: isMobile);
+      // ✅ Utiliser un Builder pour obtenir un nouveau contexte
+      return Builder(
+        builder: (context) {
+          return ChangeNotifierProvider(
+            create: (_) => ExercicesProvider(),
+            child: const ExercicesScreen(),
+          );
+        },
+      );
     }
 
     // Onglet 3 : Cahier de correction
@@ -120,9 +127,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return const CahierScreen();
     }
 
+    // Onglet 4 : Bibliothèque
     if (provider.selectedIndex == 4) {
-    return _BibliothequeView(isMobile: isMobile);
-  }
+      return _BibliothequeView(isMobile: isMobile);
+    }
+
     // Onglet 0 : Accueil (chat par matière)
     return DashboardSubjectChat(
       subjectSlug: provider.selectedSubjectSlug,
@@ -131,93 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ===== VUE EXERCICES (responsive) =====
-class _ExercisesView extends StatelessWidget {
-  const _ExercisesView({required this.isMobile});
-
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 16 : 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.edit_note_outlined,
-              size: isMobile ? 40 : 48,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '📝 Exercices',
-              style: TextStyle(
-                fontSize: isMobile ? 18 : 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Page des exercices (à venir)',
-              style: TextStyle(
-                fontSize: isMobile ? 13 : 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ===== VUE CAHIER (responsive) =====
-class _CahierView extends StatelessWidget {
-  const _CahierView({required this.isMobile});
-
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 16 : 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.draw_outlined,
-              size: isMobile ? 40 : 48,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '🖊️ Cahier de correction',
-              style: TextStyle(
-                fontSize: isMobile ? 18 : 20,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Page du cahier numérique (à venir)',
-              style: TextStyle(
-                fontSize: isMobile ? 13 : 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
+// ===== VUE BIBLIOTHÈQUE =====
 class _BibliothequeView extends StatelessWidget {
   const _BibliothequeView({required this.isMobile});
 

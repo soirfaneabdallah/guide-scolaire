@@ -23,87 +23,138 @@ class CahierToolbar extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Couleurs
-          _ColorButton(
-            color: Colors.black,
-            isSelected: provider.selectedColor == Colors.black && !provider.isEraser,
-            onTap: () => provider.setColor(Colors.black),
-          ),
-          _ColorButton(
-            color: Colors.red,
-            isSelected: provider.selectedColor == Colors.red && !provider.isEraser,
-            onTap: () => provider.setColor(Colors.red),
-          ),
-          _ColorButton(
-            color: Colors.blue,
-            isSelected: provider.selectedColor == Colors.blue && !provider.isEraser,
-            onTap: () => provider.setColor(Colors.blue),
-          ),
-          _ColorButton(
-            color: Colors.green,
-            isSelected: provider.selectedColor == Colors.green && !provider.isEraser,
-            onTap: () => provider.setColor(Colors.green),
-          ),
-          _ColorButton(
-            color: Colors.orange,
-            isSelected: provider.selectedColor == Colors.orange && !provider.isEraser,
-            onTap: () => provider.setColor(Colors.orange),
-          ),
-          const VerticalDivider(width: 16, thickness: 1),
-
-          // Taille du stylo
-          _SizeButton(
-            size: 2,
-            isSelected: provider.strokeWidth == 2,
-            onTap: () => provider.setStrokeWidth(2),
-          ),
-          _SizeButton(
-            size: 4,
-            isSelected: provider.strokeWidth == 4,
-            onTap: () => provider.setStrokeWidth(4),
-          ),
-          _SizeButton(
-            size: 6,
-            isSelected: provider.strokeWidth == 6,
-            onTap: () => provider.setStrokeWidth(6),
-          ),
-          const VerticalDivider(width: 16, thickness: 1),
-
-          // Gomme
-          IconButton(
-            icon: Icon(
-              Icons.eraser,
-              color: provider.isEraser ? AppColors.primary : null,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // ===== Outils =====
+            _ToolButton(
+              icon: Icons.edit_outlined,
+              isSelected: provider.currentTool == ToolType.pen,
+              onTap: () => provider.setTool(ToolType.pen),
+              tooltip: 'Stylo',
             ),
-            onPressed: provider.toggleEraser,
-            tooltip: 'Gomme',
-          ),
+            _ToolButton(
+              icon: Icons.cleaning_services,
+              isSelected: provider.currentTool == ToolType.eraser,
+              onTap: () => provider.setTool(ToolType.eraser),
+              tooltip: 'Gomme',
+            ),
+            const VerticalDivider(width: 8, thickness: 1),
 
-          // Annuler / Rétablir
-          IconButton(
-            icon: const Icon(Icons.undo),
-            onPressed: provider.canUndo ? provider.undo : null,
-            tooltip: 'Annuler',
-          ),
-          IconButton(
-            icon: const Icon(Icons.redo),
-            onPressed: provider.canRedo ? provider.redo : null,
-            tooltip: 'Rétablir',
-          ),
+            // ===== Formes =====
+            _ToolButton(
+              icon: Icons.horizontal_rule,
+              isSelected: provider.currentTool == ToolType.line,
+              onTap: () => provider.setTool(ToolType.line),
+              tooltip: 'Ligne',
+            ),
+            _ToolButton(
+              icon: Icons.crop_square,
+              isSelected: provider.currentTool == ToolType.rectangle,
+              onTap: () => provider.setTool(ToolType.rectangle),
+              tooltip: 'Rectangle',
+            ),
+            _ToolButton(
+              icon: Icons.circle_outlined,
+              isSelected: provider.currentTool == ToolType.circle,
+              onTap: () => provider.setTool(ToolType.circle),
+              tooltip: 'Cercle',
+            ),
+            _ToolButton(
+              icon: Icons.text_fields,
+              isSelected: provider.currentTool == ToolType.text,
+              onTap: () => provider.setTool(ToolType.text),
+              tooltip: 'Texte',
+            ),
+            const VerticalDivider(width: 8, thickness: 1),
 
-          // Effacer tout
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: () {
-              _showClearDialog(context);
-            },
-            tooltip: 'Effacer tout',
-            color: Colors.red,
-          ),
-        ],
+            // ===== Couleurs =====
+            _ColorButton(
+              color: Colors.black,
+              isSelected: provider.selectedColor == Colors.black,
+              onTap: () => provider.setColor(Colors.black),
+            ),
+            _ColorButton(
+              color: Colors.red,
+              isSelected: provider.selectedColor == Colors.red,
+              onTap: () => provider.setColor(Colors.red),
+            ),
+            _ColorButton(
+              color: Colors.blue,
+              isSelected: provider.selectedColor == Colors.blue,
+              onTap: () => provider.setColor(Colors.blue),
+            ),
+            _ColorButton(
+              color: Colors.green,
+              isSelected: provider.selectedColor == Colors.green,
+              onTap: () => provider.setColor(Colors.green),
+            ),
+            _ColorButton(
+              color: Colors.orange,
+              isSelected: provider.selectedColor == Colors.orange,
+              onTap: () => provider.setColor(Colors.orange),
+            ),
+            const VerticalDivider(width: 8, thickness: 1),
+
+            // ===== Taille =====
+            _SizeButton(
+              size: 2,
+              isSelected: provider.strokeWidth == 2,
+              onTap: () => provider.setStrokeWidth(2),
+            ),
+            _SizeButton(
+              size: 4,
+              isSelected: provider.strokeWidth == 4,
+              onTap: () => provider.setStrokeWidth(4),
+            ),
+            _SizeButton(
+              size: 6,
+              isSelected: provider.strokeWidth == 6,
+              onTap: () => provider.setStrokeWidth(6),
+            ),
+            const VerticalDivider(width: 8, thickness: 1),
+
+            // ===== Options =====
+            IconButton(
+              icon: Icon(
+                Icons.format_color_fill,  // ✅ CORRIGÉ
+                color: provider.isFilled ? AppColors.primary : null,
+              ),
+              onPressed: provider.toggleFilled,
+              tooltip: 'Remplir',
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.grid_on,
+                color: provider.showGrid ? AppColors.primary : null,
+              ),
+              onPressed: provider.toggleGrid,
+              tooltip: 'Lignes du cahier',
+            ),
+            const VerticalDivider(width: 8, thickness: 1),
+
+            // ===== Actions =====
+            IconButton(
+              icon: const Icon(Icons.undo),
+              onPressed: provider.canUndo ? provider.undo : null,
+              tooltip: 'Annuler',
+            ),
+            IconButton(
+              icon: const Icon(Icons.redo),
+              onPressed: provider.canRedo ? provider.redo : null,
+              tooltip: 'Rétablir',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_sweep),
+              onPressed: () {
+                _showClearDialog(context);
+              },
+              tooltip: 'Effacer tout',
+              color: Colors.red,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -122,7 +173,7 @@ class CahierToolbar extends StatelessWidget {
           TextButton(
             onPressed: () {
               final provider = Provider.of<CahierProvider>(context, listen: false);
-              provider.clearCanvas();
+              provider.clearAll();
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
@@ -130,6 +181,32 @@ class CahierToolbar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        icon,
+        color: isSelected ? AppColors.primary : null,
+      ),
+      onPressed: onTap,
+      tooltip: tooltip,
     );
   }
 }
@@ -151,8 +228,8 @@ class _ColorButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: 32,
-        height: 32,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
@@ -190,8 +267,8 @@ class _SizeButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: 32,
-        height: 32,
+        width: 28,
+        height: 28,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,

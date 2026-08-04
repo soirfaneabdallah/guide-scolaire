@@ -75,7 +75,7 @@ class CahierToolbar extends StatelessWidget {
           // Gomme
           IconButton(
             icon: Icon(
-              Icons.eraser,
+              Icons.cleaning_services,
               color: provider.isEraser ? AppColors.primary : null,
             ),
             onPressed: provider.toggleEraser,
