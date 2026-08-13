@@ -1,0 +1,36 @@
+# backend/render.yaml
+
+services:
+  - type: web
+    name: elearning-backend
+    runtime: image
+    repo: https://github.com/soirfaneabdallah/guide-scolaire
+    plan: free
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: elearning
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_ORIGINS
+        value: https://votre-frontend.netlify.app
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+
+  - type: postgresql
+    name: elearning
+    plan: free
+    databaseName: elearning
+    user: elearning
+    ipAllowList: []
