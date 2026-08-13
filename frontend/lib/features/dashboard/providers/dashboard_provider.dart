@@ -1,68 +1,97 @@
 // frontend/lib/features/dashboard/providers/dashboard_provider.dart
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../../chat/domain/entities/message.dart';
+import '../../../core/network/api_client.dart';
 
-// Model des matières (pour la base de données)
+// ============================================================
+//  MODÈLE MATIÈRE
+// ============================================================
+
 class Subject {
   final int id;
   final String name;
   final String slug;
-  final String? iconName;
-  final String? colorHex;
+  final String? icon;
+  final String? color;
+  final bool isDefault;
 
   Subject({
     required this.id,
     required this.name,
     required this.slug,
-    this.iconName,
-    this.colorHex,
+    this.icon,
+    this.color,
+    this.isDefault = false,
   });
 
   factory Subject.fromJson(Map<String, dynamic> json) {
     return Subject(
-      id: json['id'],
-      name: json['name'],
-      slug: json['slug'],
-      iconName: json['icon'],
-      colorHex: json['color'],
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      slug: json['slug'] ?? json['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+      icon: json['icon'],
+      color: json['color'],
+      isDefault: json['is_default'] ?? false,
     );
   }
 
-  Color get color => colorHex != null 
-      ? Color(int.parse(colorHex!.replaceFirst('#', '0xFF')))
-      : const Color(0xFF2E7D32);
-}
-
-class DashboardProvider extends ChangeNotifier {
-  DashboardProvider() {
-    // Pour l'instant, données statiques
-    // Plus tard, on chargera depuis l'API
-    _subjects = [
-      Subject(id: 1, name: 'Mathématiques', slug: 'mathematiques'),
-      Subject(id: 2, name: 'Français', slug: 'francais'),
-      Subject(id: 3, name: 'Physique-Chimie', slug: 'physique'),
-      Subject(id: 4, name: 'SVT', slug: 'svt'),
-      Subject(id: 5, name: 'Histoire-Géographie', slug: 'histoire'),
-      Subject(id: 6, name: 'Anglais', slug: 'anglais'),
-    ];
-
-    _subjectChats = {
-      for (var s in _subjects) s.slug: [],
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'icon': icon,
+      'color': color,
     };
   }
 
-  // Données
-  List<Subject> _subjects = [];
-  int _selectedIndex = 0;           // 0=accueil, 1=cours, 2=exercices, 3=cahier
-  String _selectedSubjectSlug = ''; // Slug de la matière sélectionnée
-  Map<String, List<Message>> _subjectChats = {};
+  Subject copyWith({
+    int? id,
+    String? name,
+    String? slug,
+    String? icon,
+    String? color,
+    bool? isDefault,
+  }) {
+    return Subject(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      slug: slug ?? this.slug,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      isDefault: isDefault ?? this.isDefault,
+    );
+  }
 
-  // Getters
+  Color get colorValue => color != null
+      ? Color(int.parse(color!.replaceFirst('#', '0xFF')))
+      : const Color(0xFF2E7D32);
+}
+
+// ============================================================
+//  PROVIDER
+// ============================================================
+
+class DashboardProvider extends ChangeNotifier {
+  DashboardProvider({this.apiClient});
+
+  final ApiClient? apiClient;
+
+  List<Subject> _subjects = [];
+  int _selectedIndex = 0;
+  String _selectedSubjectSlug = '';
+  Map<String, List<Message>> _subjectChats = {};
+  bool _isLoading = false;
+  String? _error;
+
+  // ============================================================
+  //  GETTERS
+  // ============================================================
+
   List<Subject> get subjects => _subjects;
   int get selectedIndex => _selectedIndex;
-  String get selectedSubjectSlug => _selectedSubjectSlug.isNotEmpty 
-      ? _selectedSubjectSlug 
+  String get selectedSubjectSlug => _selectedSubjectSlug.isNotEmpty
+      ? _selectedSubjectSlug
       : (_subjects.isNotEmpty ? _subjects.first.slug : '');
   Subject? get selectedSubject {
     try {
@@ -71,8 +100,13 @@ class DashboardProvider extends ChangeNotifier {
       return _subjects.isNotEmpty ? _subjects.first : null;
     }
   }
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  // Méthodes
+  // ============================================================
+  //  MÉTHODES DE NAVIGATION
+  // ============================================================
+
   void selectTab(int index) {
     _selectedIndex = index;
     notifyListeners();
@@ -102,9 +136,281 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // Pour l'avenir : charger depuis l'API
-  Future<void> loadSubjectsFromApi() async {
-    // TODO: Appel API GET /subjects
-    // Puis mettre à jour _subjects et _subjectChats
+  // ============================================================
+  //  CHARGEMENT DES MATIÈRES
+  // ============================================================
+
+  Future<void> loadSubjects() async {
+    if (apiClient == null) {
+      _loadMockSubjects();
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await apiClient!.get('/subjects/me');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final List<dynamic> defaultSubjects = data['default_subjects'] ?? [];
+        final List<dynamic> customSubjects = data['custom_subjects'] ?? [];
+
+        // Combiner les matières par défaut et les matières personnalisées
+        List<Subject> loadedSubjects = [];
+
+        // Matières par défaut
+        for (var item in defaultSubjects) {
+          loadedSubjects.add(Subject.fromJson(item));
+        }
+
+        // Matières personnalisées (avec le nom personnalisé)
+        for (var item in customSubjects) {
+          final subjectData = item['subject'] as Map<String, dynamic>;
+          loadedSubjects.add(Subject(
+            id: subjectData['id'] ?? 0,
+            name: item['custom_name'] ?? subjectData['name'] ?? '',
+            slug: subjectData['slug'] ?? subjectData['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+            icon: item['custom_icon'] ?? subjectData['icon'],
+            color: item['custom_color'] ?? subjectData['color'],
+            isDefault: false,
+          ));
+        }
+
+        _subjects = loadedSubjects;
+
+        // Initialiser les chats pour chaque matière
+        _subjectChats = {
+          for (var s in _subjects) s.slug: [],
+        };
+
+        // Sélectionner la première matière si aucune n'est sélectionnée
+        if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
+          _selectedSubjectSlug = _subjects.first.slug;
+        }
+
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        _error = 'Erreur lors du chargement des matières';
+        _isLoading = false;
+        notifyListeners();
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      // Fallback sur les données mock
+      _loadMockSubjects();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      _loadMockSubjects();
+    }
+  }
+
+  void _loadMockSubjects() {
+    _subjects = [
+      Subject(id: 1, name: 'Mathématiques', slug: 'mathematiques', icon: '📐', color: '#4CAF50', isDefault: true),
+      Subject(id: 2, name: 'Français', slug: 'francais', icon: '📖', color: '#2196F3', isDefault: true),
+      Subject(id: 3, name: 'Physique-Chimie', slug: 'physique', icon: '⚡', color: '#FF9800', isDefault: true),
+      Subject(id: 4, name: 'SVT', slug: 'svt', icon: '🧬', color: '#9C27B0', isDefault: true),
+      Subject(id: 5, name: 'Histoire-Géographie', slug: 'histoire', icon: '🏛️', color: '#795548', isDefault: true),
+      Subject(id: 6, name: 'Anglais', slug: 'anglais', icon: '🗣️', color: '#F44336', isDefault: true),
+    ];
+
+    _subjectChats = {
+      for (var s in _subjects) s.slug: [],
+    };
+
+    if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
+      _selectedSubjectSlug = _subjects.first.slug;
+    }
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  //  GESTION DES MATIÈRES (CRUD)
+  // ============================================================
+
+  Future<bool> addSubject({
+    required String name,
+    String? icon,
+    String? color,
+  }) async {
+    if (apiClient == null) {
+      // Mode mock
+      final newSubject = Subject(
+        id: _subjects.length + 100,
+        name: name,
+        slug: name.toLowerCase().replaceAll(' ', '_'),
+        icon: icon,
+        color: color,
+        isDefault: false,
+      );
+      _subjects.add(newSubject);
+      _subjectChats[newSubject.slug] = [];
+      notifyListeners();
+      return true;
+    }
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await apiClient!.post(
+        '/subjects/me',
+        data: {
+          'subject_id': 0, // Pour les matières personnalisées, on envoie un ID 0
+          'custom_name': name,
+          'custom_icon': icon,
+          'custom_color': color,
+        },
+      );
+
+      if (response.statusCode == 201) {
+        await loadSubjects(); // Recharger la liste
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Erreur lors de l\'ajout de la matière';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateSubject({
+    required int subjectId,
+    String? name,
+    String? icon,
+    String? color,
+  }) async {
+    if (apiClient == null) {
+      // Mode mock
+      final index = _subjects.indexWhere((s) => s.id == subjectId);
+      if (index != -1) {
+        final old = _subjects[index];
+        final newSlug = name?.toLowerCase().replaceAll(' ', '_') ?? old.slug;
+        _subjects[index] = old.copyWith(
+          name: name ?? old.name,
+          slug: newSlug,
+          icon: icon ?? old.icon,
+          color: color ?? old.color,
+        );
+        // Mettre à jour le slug dans les chats
+        if (newSlug != old.slug) {
+          final messages = _subjectChats[old.slug] ?? [];
+          _subjectChats.remove(old.slug);
+          _subjectChats[newSlug] = messages;
+        }
+        notifyListeners();
+        return true;
+      }
+      return false;
+    }
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await apiClient!.put(
+        '/subjects/me/$subjectId',
+        data: {
+          'custom_name': name,
+          'custom_icon': icon,
+          'custom_color': color,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        await loadSubjects();
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Erreur lors de la modification de la matière';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteSubject(int subjectId) async {
+    if (apiClient == null) {
+      // Mode mock
+      final index = _subjects.indexWhere((s) => s.id == subjectId);
+      if (index != -1) {
+        final slug = _subjects[index].slug;
+        _subjects.removeAt(index);
+        _subjectChats.remove(slug);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    }
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final response = await apiClient!.delete(
+        '/subjects/me/$subjectId',
+      );
+
+      if (response.statusCode == 204) {
+        await loadSubjects();
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Erreur lors de la suppression de la matière';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 }

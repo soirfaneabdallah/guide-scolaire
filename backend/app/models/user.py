@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, Text, D
 from sqlalchemy.sql import func
 from ..core.database import Base
 import enum
+from sqlalchemy.orm import relationship
 
 class UserRole(str, enum.Enum):
     STUDENT = "student"
@@ -41,3 +42,5 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)  # Dernière connexion
+    
+    user_subjects = relationship("UserSubject", back_populates="user")

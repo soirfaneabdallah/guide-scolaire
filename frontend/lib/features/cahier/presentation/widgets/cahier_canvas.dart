@@ -1,6 +1,6 @@
 // frontend/lib/features/cahier/presentation/widgets/cahier_canvas.dart
 
-import 'dart:ui' as ui;
+//import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cahier_provider.dart';

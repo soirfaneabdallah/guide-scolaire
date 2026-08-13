@@ -23,6 +23,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
+  void initState() {
+    super.initState();
+    // Charger les matières au démarrage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<DashboardProvider>();
+      provider.loadSubjects();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final provider = Provider.of<DashboardProvider>(context);
@@ -111,7 +121,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildContent(DashboardProvider provider, bool isMobile) {
     // Onglet 2 : Exercices
     if (provider.selectedIndex == 2) {
-      // ✅ Utiliser un Builder pour obtenir un nouveau contexte
       return Builder(
         builder: (context) {
           return ChangeNotifierProvider(

@@ -1,14 +1,10 @@
-// frontend/lib/features/chat/data/repositories/chat_repository.dart
+// frontend/lib/features/chat/repositories/chat_repository.dart
 
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/entities/message.dart';
 import '../repositories/i_chat_repository.dart';
-//import '../data/chat_message.dart';
-import '../data/chat_request.dart';
 
-/// Implémentation du repository chat avec Dio.
 class ChatRepository implements IChatRepository {
   ChatRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
@@ -17,15 +13,17 @@ class ChatRepository implements IChatRepository {
   @override
   Future<Message> sendMessage(String question, {int? userId}) async {
     try {
-      final request = ChatRequest(question: question, userId: userId);
       final response = await _apiClient.post(
-        '/chat/ask',
-        data: request.toJson(),
+        '/chat/ask',  // ✅ URL: /api/v1/chat/ask
+        data: {
+          'question': question,
+          // 'level': '3ème',  // À ajouter si besoin
+        },
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data as Map<String, dynamic>;
-        final message = Message(
+        return Message(
           id: data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
           content: data['answer'] ?? '',
           isUser: false,
@@ -33,11 +31,8 @@ class ChatRepository implements IChatRepository {
           suggestions: List<String>.from(data['suggestions'] ?? []),
           confidence: data['confidence']?.toDouble(),
         );
-        return message;
       } else {
-        throw Exception(
-          'Erreur ${response.statusCode}: ${response.data?['detail'] ?? 'Erreur inconnue'}',
-        );
+        throw Exception('Erreur ${response.statusCode}: ${response.data?['detail'] ?? 'Erreur inconnue'}');
       }
     } on DioException catch (e) {
       throw Exception(_handleDioError(e));
@@ -56,9 +51,6 @@ class ChatRepository implements IChatRepository {
     }
     if (e.response?.statusCode == 401) {
       return 'Session expirée. Reconnecte-toi.';
-    }
-    if (e.response?.statusCode == 429) {
-      return 'Trop de requêtes. Attends un peu avant de réessayer.';
     }
     if (e.response?.statusCode != null) {
       return 'Erreur ${e.response?.statusCode}: ${e.response?.data?['detail'] ?? 'Erreur inconnue'}';

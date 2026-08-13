@@ -6,8 +6,7 @@ from typing import Optional
 class Settings(BaseSettings):
     # Base de données
     DATABASE_URL: str = "sqlite:///./guide_scolaire.db"  # Par défaut SQLite pour dev
-    
-    # JWT
+    IA_SERVICE_URL: str = "http://localhost:8002"
     SECRET_KEY: str = "changez_ceci_en_production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

@@ -14,7 +14,7 @@ class ApiClient {
         // 🔥 CORRECTION ICI : Utiliser apiBase au lieu de baseUrl
         baseUrl: EnvironmentConfig.apiBase,  // 👈 http://localhost:8000/api/v1
         connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 180),  // 3 minutes
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

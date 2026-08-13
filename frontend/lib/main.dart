@@ -3,15 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'features/auth/providers/auth_provider.dart';
-import 'features/auth/presentation/screens/login_page.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/chat/repositories/chat_repository.dart';
 import 'features/dashboard/providers/dashboard_provider.dart';
-import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/home/presentation/screens/home_screen.dart';  // 👈 AJOUTER CET IMPORT
 import 'core/network/api_client.dart';
 import 'core/routing/app_router.dart';
-import 'core/routing/app_routes.dart';
+
 
 void main() => runApp(const MyApp());
 

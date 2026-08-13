@@ -1,0 +1,100 @@
+# ============================================================
+# .dockerignore - Guide Scolaire / E-learningAI
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+venv/
+.venv/
+.env/
+ENV/
+
+# Bases de données
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Modèles IA (trop lourds pour le build Docker)
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.gguf
+*.bin
+*.h5
+*.pb
+*.tflite
+*.model
+*.weights
+*.hdf5
+*.ckpt
+
+# Données
+data/
+!data/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Tests
+tests/
+*.test.py
+*.spec.py
+
+# Fichiers temporaires
+*.tmp
+*.temp
+tmp/
+temp/
+*.cache
+
+# Fichiers de configuration locaux
+.env.*
+*.env.local
+*.local.*
+
+# Node.js (si présent)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Flutter
+.dart_tool/
+.pub-cache/
+.pub/
+build/
+*.lock
+*.g.dart
+
+# Fichiers de déploiement
+docker-compose.override.yml
+docker-compose.*.yml
+*.deploy.yml
+
+# OS
+.DS_Store
+Thumbs.db

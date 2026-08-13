@@ -55,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Guide Scolaire',
+                  'E-learningAI',
                   style: TextStyle(
                     fontSize: titleSize,
                     fontWeight: FontWeight.bold,
