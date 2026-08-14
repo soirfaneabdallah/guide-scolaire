@@ -93,15 +93,42 @@ class DashboardProvider extends ChangeNotifier {
   String get selectedSubjectSlug => _selectedSubjectSlug.isNotEmpty
       ? _selectedSubjectSlug
       : (_subjects.isNotEmpty ? _subjects.first.slug : '');
+  
   Subject? get selectedSubject {
-    try {
-      return _subjects.firstWhere((s) => s.slug == selectedSubjectSlug);
-    } catch (_) {
-      return _subjects.isNotEmpty ? _subjects.first : null;
+    if (_selectedSubjectSlug.isNotEmpty) {
+      try {
+        return _subjects.firstWhere((s) => s.slug == _selectedSubjectSlug);
+      } catch (_) {
+        return _subjects.isNotEmpty ? _subjects.first : null;
+      }
     }
+    return _subjects.isNotEmpty ? _subjects.first : null;
   }
+  
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  // ============================================================
+  //  NORMALISATION DES SLUGS
+  // ============================================================
+
+  String _normalizeSlug(String slug) {
+    if (slug.isEmpty) return '';
+    return slug
+        .toLowerCase()
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ç', 'c')
+        .replaceAll('ô', 'o')
+        .replaceAll('î', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('ù', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll(' ', '_');
+  }
 
   // ============================================================
   //  MÉTHODES DE NAVIGATION
@@ -119,19 +146,23 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   List<Message> getMessagesForSubject(String slug) {
-    return _subjectChats[slug] ?? [];
+    final normalizedSlug = _normalizeSlug(slug);
+    return _subjectChats[normalizedSlug] ?? [];
   }
 
   void addMessage(String slug, Message message) {
-    if (_subjectChats.containsKey(slug)) {
-      _subjectChats[slug]!.add(message);
-      notifyListeners();
+    final normalizedSlug = _normalizeSlug(slug);
+    if (!_subjectChats.containsKey(normalizedSlug)) {
+      _subjectChats[normalizedSlug] = [];
     }
+    _subjectChats[normalizedSlug]!.add(message);
+    notifyListeners();
   }
 
   void clearSubjectHistory(String slug) {
-    if (_subjectChats.containsKey(slug)) {
-      _subjectChats[slug] = [];
+    final normalizedSlug = _normalizeSlug(slug);
+    if (_subjectChats.containsKey(normalizedSlug)) {
+      _subjectChats[normalizedSlug] = [];
       notifyListeners();
     }
   }
@@ -179,7 +210,7 @@ class DashboardProvider extends ChangeNotifier {
         _subjects = loadedSubjects;
 
         _subjectChats = {
-          for (var s in _subjects) s.slug: [],
+          for (var s in _subjects) _normalizeSlug(s.slug): [],
         };
 
         if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
@@ -217,7 +248,7 @@ class DashboardProvider extends ChangeNotifier {
     ];
 
     _subjectChats = {
-      for (var s in _subjects) s.slug: [],
+      for (var s in _subjects) _normalizeSlug(s.slug): [],
     };
 
     if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
@@ -228,48 +259,70 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  //  CHARGEMENT DE L'HISTORIQUE DES CHATS (CORRIGÉ)
+  //  CHARGEMENT DE L'HISTORIQUE
   // ============================================================
+
   Future<void> loadChatHistory(int subjectId) async {
-  if (apiClient == null) return;
-  if (_isLoading) return;
+    if (apiClient == null) return;
+    if (_isLoading) return;
 
-  _isLoading = true;
-  notifyListeners();
+    _isLoading = true;
+    notifyListeners();
 
-  try {
-    final response = await apiClient!.get('/chat/history/$subjectId');
-    if (response.statusCode == 200) {
-      final data = response.data;
-      final List messages = data['messages'] ?? [];
-      final String subjectSlug = data['subject_slug'] ?? ''; // 👈 Clé importante
-
-      print('✅ loadChatHistory: subjectSlug = "$subjectSlug"');
-      print('✅ loadChatHistory: ${messages.length} messages reçus');
-
-      final List<Message> chatMessages = messages.map((m) {
-        return Message(
-          id: m['id'].toString(),
-          content: m['content'],
-          isUser: m['is_user'] ?? true,
-          timestamp: DateTime.parse(m['created_at']),
-          isError: m['is_error'] ?? false,
-        );
-      }).toList();
-
-      // ✅ Stocker avec le bon slug
-      _subjectChats[subjectSlug] = chatMessages;
-      print('✅ _subjectChats["$subjectSlug"] = ${chatMessages.length} messages');
+    try {
+      final response = await apiClient!.get('/chat/history/$subjectId');
       
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final List messages = data['messages'] ?? [];
+        final String subjectSlug = data['subject_slug'] ?? '';
+        
+        final normalizedSlug = _normalizeSlug(subjectSlug);
+        
+        final List<Message> chatMessages = messages.map((m) {
+          return Message(
+            id: m['id'].toString(),
+            content: m['content'] ?? '',
+            isUser: m['is_user'] ?? true,
+            timestamp: m['created_at'] != null 
+                ? DateTime.parse(m['created_at']) 
+                : DateTime.now(),
+            isError: m['is_error'] ?? false,
+          );
+        }).toList();
+
+        _subjectChats[normalizedSlug] = chatMessages;
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        _error = 'Erreur lors du chargement de l\'historique';
+        _isLoading = false;
+        notifyListeners();
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
       _isLoading = false;
       notifyListeners();
     }
-  } catch (e) {
-    print('❌ Erreur loadChatHistory: $e');
-    _isLoading = false;
-    notifyListeners();
   }
-}
+
+  // ✅ Forcer le rechargement (après envoi de message)
+  Future<void> refreshChatHistory(int subjectId) async {
+    if (apiClient == null) return;
+
+    // Vider les messages pour cette matière
+    final subject = _subjects.firstWhere((s) => s.id == subjectId, orElse: () => _subjects.first);
+    final normalizedSlug = _normalizeSlug(subject.slug);
+    _subjectChats[normalizedSlug] = [];
+    
+    // Recharger
+    await loadChatHistory(subjectId);
+  }
+
   // ============================================================
   //  GESTION DES MATIÈRES (CRUD)
   // ============================================================
@@ -283,13 +336,13 @@ class DashboardProvider extends ChangeNotifier {
       final newSubject = Subject(
         id: _subjects.length + 100,
         name: name,
-        slug: name.toLowerCase().replaceAll(' ', '_'),
+        slug: _normalizeSlug(name),
         icon: icon,
         color: color,
         isDefault: false,
       );
       _subjects.add(newSubject);
-      _subjectChats[newSubject.slug] = [];
+      _subjectChats[_normalizeSlug(newSubject.slug)] = [];
       notifyListeners();
       return true;
     }
@@ -342,7 +395,7 @@ class DashboardProvider extends ChangeNotifier {
       final index = _subjects.indexWhere((s) => s.id == subjectId);
       if (index != -1) {
         final old = _subjects[index];
-        final newSlug = name?.toLowerCase().replaceAll(' ', '_') ?? old.slug;
+        final newSlug = _normalizeSlug(name ?? old.name);
         _subjects[index] = old.copyWith(
           name: name ?? old.name,
           slug: newSlug,
@@ -350,8 +403,8 @@ class DashboardProvider extends ChangeNotifier {
           color: color ?? old.color,
         );
         if (newSlug != old.slug) {
-          final messages = _subjectChats[old.slug] ?? [];
-          _subjectChats.remove(old.slug);
+          final messages = _subjectChats[_normalizeSlug(old.slug)] ?? [];
+          _subjectChats.remove(_normalizeSlug(old.slug));
           _subjectChats[newSlug] = messages;
         }
         notifyListeners();
@@ -401,7 +454,7 @@ class DashboardProvider extends ChangeNotifier {
     if (apiClient == null) {
       final index = _subjects.indexWhere((s) => s.id == subjectId);
       if (index != -1) {
-        final slug = _subjects[index].slug;
+        final slug = _normalizeSlug(_subjects[index].slug);
         _subjects.removeAt(index);
         _subjectChats.remove(slug);
         notifyListeners();

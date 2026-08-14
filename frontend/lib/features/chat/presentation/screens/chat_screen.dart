@@ -10,9 +10,7 @@ import '../widgets/chat_input_bar.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/typing_indicator.dart';
 
-/// Écran de chat complet.
-/// Interface type ChatGPT avec bulles de messages, indicateur de frappe,
-/// et suggestions contextuelles.
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, this.initialQuestion});
 
@@ -74,7 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          'Assistant Scolaire',
+          'E-learningAI',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
