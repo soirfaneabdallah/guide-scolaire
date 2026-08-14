@@ -2,9 +2,9 @@
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, Text, Date, JSON
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from ..core.database import Base
 import enum
-from sqlalchemy.orm import relationship
 
 class UserRole(str, enum.Enum):
     STUDENT = "student"
@@ -21,17 +21,15 @@ class User(Base):
     # Identité
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    level = Column(String(50), nullable=True)  # 6ème, 5ème, ... Terminale
+    level = Column(String(50), nullable=True)
     
-    # 📸 Nouveaux champs
-    avatar_url = Column(String(500), nullable=True)  # URL de la photo de profil
-    bio = Column(Text, nullable=True)                # Biographie / présentation
-    school = Column(String(255), nullable=True)      # Établissement scolaire
-    phone_number = Column(String(50), nullable=True) # Numéro de téléphone
-    birth_date = Column(Date, nullable=True)         # Date de naissance
-    
-    # Paramètres et préférences (JSON)
-    preferences = Column(JSON, nullable=True, default={})  # Thème, notifications, etc.
+    # Profil
+    avatar_url = Column(String(500), nullable=True)
+    bio = Column(Text, nullable=True)
+    school = Column(String(255), nullable=True)
+    phone_number = Column(String(50), nullable=True)
+    birth_date = Column(Date, nullable=True)
+    preferences = Column(JSON, nullable=True, default={})
     
     # Rôle et statut
     role = Column(Enum(UserRole), default=UserRole.STUDENT)
@@ -41,6 +39,8 @@ class User(Base):
     # Suivi temporel
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    last_login = Column(DateTime(timezone=True), nullable=True)  # Dernière connexion
-    
-    user_subjects = relationship("UserSubject", back_populates="user")
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
+    # Relations
+    user_subjects = relationship("UserSubject", back_populates="user", cascade="all, delete-orphan")
+    chat_history = relationship("ChatHistory", back_populates="user", cascade="all, delete-orphan")

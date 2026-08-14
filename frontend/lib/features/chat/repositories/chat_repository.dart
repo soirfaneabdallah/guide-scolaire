@@ -5,31 +5,49 @@ import '../../../core/network/api_client.dart';
 import '../domain/entities/message.dart';
 import '../repositories/i_chat_repository.dart';
 
+/// Implémentation du repository chat avec Dio.
 class ChatRepository implements IChatRepository {
   ChatRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   final ApiClient _apiClient;
 
   @override
-  Future<Message> sendMessage(String question, {int? userId}) async {
+  Future<Message> sendMessage(
+    String question, {
+    int? userId,
+    String? subjectSlug,
+    int? subjectId,  // 👈 AJOUT : ID de la matière
+  }) async {
     try {
+      // 👇 Corps de la requête
+      final Map<String, dynamic> data = {
+        'question': question,
+        'level': '3ème',
+      };
+      
+      // ✅ Utiliser l'ID si disponible (plus robuste)
+      if (subjectId != null) {
+        data['subject_id'] = subjectId;
+      } 
+      // Fallback sur le slug si l'ID n'est pas fourni
+      else if (subjectSlug != null && subjectSlug.isNotEmpty) {
+        data['subject_slug'] = subjectSlug;
+      }
+
       final response = await _apiClient.post(
-        '/chat/ask',  // ✅ URL: /api/v1/chat/ask
-        data: {
-          'question': question,
-          // 'level': '3ème',  // À ajouter si besoin
-        },
+        '/chat/ask',
+        data: data,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = response.data as Map<String, dynamic>;
+        final result = response.data as Map<String, dynamic>;
         return Message(
-          id: data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          content: data['answer'] ?? '',
+          id: result['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          content: result['answer'] ?? '',
           isUser: false,
           timestamp: DateTime.now(),
-          suggestions: List<String>.from(data['suggestions'] ?? []),
-          confidence: data['confidence']?.toDouble(),
+          suggestions: List<String>.from(result['suggestions'] ?? []),
+          confidence: result['confidence']?.toDouble(),
         );
       } else {
         throw Exception('Erreur ${response.statusCode}: ${response.data?['detail'] ?? 'Erreur inconnue'}');

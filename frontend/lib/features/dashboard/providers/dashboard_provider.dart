@@ -158,15 +158,12 @@ class DashboardProvider extends ChangeNotifier {
         final List<dynamic> defaultSubjects = data['default_subjects'] ?? [];
         final List<dynamic> customSubjects = data['custom_subjects'] ?? [];
 
-        // Combiner les matières par défaut et les matières personnalisées
         List<Subject> loadedSubjects = [];
 
-        // Matières par défaut
         for (var item in defaultSubjects) {
           loadedSubjects.add(Subject.fromJson(item));
         }
 
-        // Matières personnalisées (avec le nom personnalisé)
         for (var item in customSubjects) {
           final subjectData = item['subject'] as Map<String, dynamic>;
           loadedSubjects.add(Subject(
@@ -181,12 +178,10 @@ class DashboardProvider extends ChangeNotifier {
 
         _subjects = loadedSubjects;
 
-        // Initialiser les chats pour chaque matière
         _subjectChats = {
           for (var s in _subjects) s.slug: [],
         };
 
-        // Sélectionner la première matière si aucune n'est sélectionnée
         if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
           _selectedSubjectSlug = _subjects.first.slug;
         }
@@ -202,7 +197,6 @@ class DashboardProvider extends ChangeNotifier {
       _error = e.response?.data['detail'] ?? 'Erreur réseau';
       _isLoading = false;
       notifyListeners();
-      // Fallback sur les données mock
       _loadMockSubjects();
     } catch (e) {
       _error = e.toString();
@@ -234,6 +228,49 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   // ============================================================
+  //  CHARGEMENT DE L'HISTORIQUE DES CHATS (CORRIGÉ)
+  // ============================================================
+  Future<void> loadChatHistory(int subjectId) async {
+  if (apiClient == null) return;
+  if (_isLoading) return;
+
+  _isLoading = true;
+  notifyListeners();
+
+  try {
+    final response = await apiClient!.get('/chat/history/$subjectId');
+    if (response.statusCode == 200) {
+      final data = response.data;
+      final List messages = data['messages'] ?? [];
+      final String subjectSlug = data['subject_slug'] ?? ''; // 👈 Clé importante
+
+      print('✅ loadChatHistory: subjectSlug = "$subjectSlug"');
+      print('✅ loadChatHistory: ${messages.length} messages reçus');
+
+      final List<Message> chatMessages = messages.map((m) {
+        return Message(
+          id: m['id'].toString(),
+          content: m['content'],
+          isUser: m['is_user'] ?? true,
+          timestamp: DateTime.parse(m['created_at']),
+          isError: m['is_error'] ?? false,
+        );
+      }).toList();
+
+      // ✅ Stocker avec le bon slug
+      _subjectChats[subjectSlug] = chatMessages;
+      print('✅ _subjectChats["$subjectSlug"] = ${chatMessages.length} messages');
+      
+      _isLoading = false;
+      notifyListeners();
+    }
+  } catch (e) {
+    print('❌ Erreur loadChatHistory: $e');
+    _isLoading = false;
+    notifyListeners();
+  }
+}
+  // ============================================================
   //  GESTION DES MATIÈRES (CRUD)
   // ============================================================
 
@@ -243,7 +280,6 @@ class DashboardProvider extends ChangeNotifier {
     String? color,
   }) async {
     if (apiClient == null) {
-      // Mode mock
       final newSubject = Subject(
         id: _subjects.length + 100,
         name: name,
@@ -265,7 +301,7 @@ class DashboardProvider extends ChangeNotifier {
       final response = await apiClient!.post(
         '/subjects/me',
         data: {
-          'subject_id': 0, // Pour les matières personnalisées, on envoie un ID 0
+          'subject_id': 0,
           'custom_name': name,
           'custom_icon': icon,
           'custom_color': color,
@@ -273,7 +309,7 @@ class DashboardProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 201) {
-        await loadSubjects(); // Recharger la liste
+        await loadSubjects();
         _isLoading = false;
         notifyListeners();
         return true;
@@ -303,7 +339,6 @@ class DashboardProvider extends ChangeNotifier {
     String? color,
   }) async {
     if (apiClient == null) {
-      // Mode mock
       final index = _subjects.indexWhere((s) => s.id == subjectId);
       if (index != -1) {
         final old = _subjects[index];
@@ -314,7 +349,6 @@ class DashboardProvider extends ChangeNotifier {
           icon: icon ?? old.icon,
           color: color ?? old.color,
         );
-        // Mettre à jour le slug dans les chats
         if (newSlug != old.slug) {
           final messages = _subjectChats[old.slug] ?? [];
           _subjectChats.remove(old.slug);
@@ -365,7 +399,6 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<bool> deleteSubject(int subjectId) async {
     if (apiClient == null) {
-      // Mode mock
       final index = _subjects.indexWhere((s) => s.id == subjectId);
       if (index != -1) {
         final slug = _subjects[index].slug;

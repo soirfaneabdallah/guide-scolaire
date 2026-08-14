@@ -6,10 +6,9 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 import 'features/chat/repositories/chat_repository.dart';
 import 'features/dashboard/providers/dashboard_provider.dart';
-import 'features/home/presentation/screens/home_screen.dart';  // 👈 AJOUTER CET IMPORT
+import 'features/home/presentation/screens/home_screen.dart';
 import 'core/network/api_client.dart';
 import 'core/routing/app_router.dart';
-
 
 void main() => runApp(const MyApp());
 
@@ -46,22 +45,41 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         Provider<ApiClient>.value(value: apiClient),
-        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
-          create: (context) {
-            return ChatProvider(
-              chatRepository: ChatRepository(apiClient: apiClient),
-              authProvider: authProvider,
-            );
-          },
-          update: (context, auth, previous) {
-            return previous ?? ChatProvider(
-              chatRepository: ChatRepository(apiClient: apiClient),
-              authProvider: auth,
-            );
-          },
-        ),
         ChangeNotifierProvider(
-          create: (context) => DashboardProvider(),
+          create: (context) => DashboardProvider(apiClient: apiClient),
+        ),
+        ChangeNotifierProxyProvider2<AuthProvider, DashboardProvider, ChatProvider>(
+          create: (context) {
+            final auth = context.read<AuthProvider>();
+            final dashboard = context.read<DashboardProvider>();
+            final api = context.read<ApiClient>();
+            final subject = dashboard.selectedSubject;
+            
+            return ChatProvider(
+              chatRepository: ChatRepository(apiClient: api),
+              authProvider: auth,
+              subjectId: subject?.id ?? 1,  // 👈 Utiliser l'ID (1 = Mathématiques par défaut)
+            );
+          },
+          update: (context, auth, dashboard, previous) {
+            final subject = dashboard.selectedSubject;
+            final api = context.read<ApiClient>();
+            final newSubjectId = subject?.id ?? 1;
+            
+            if (previous != null && previous.subjectId != newSubjectId) {
+              return ChatProvider(
+                chatRepository: ChatRepository(apiClient: api),
+                authProvider: auth,
+                subjectId: newSubjectId,
+              );
+            }
+            
+            return previous ?? ChatProvider(
+              chatRepository: ChatRepository(apiClient: api),
+              authProvider: auth,
+              subjectId: newSubjectId,
+            );
+          },
         ),
       ],
       child: Consumer<AuthProvider>(
@@ -91,8 +109,7 @@ class _MyAppState extends State<MyApp> {
               fontFamily: 'Poppins',
               scaffoldBackgroundColor: const Color(0xFFF8FAFC),
             ),
-            // 🔥 CORRECTION : On met TOUJOURS la page d'accueil en premier
-            home:  HomeScreen(),  // 👈 Page d'accueil publique
+            home: HomeScreen(),
             onGenerateRoute: AppRouter.generateRoute,
             debugShowCheckedModeBanner: false,
           );

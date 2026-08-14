@@ -38,7 +38,7 @@ class HomeHeader extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'Guide Scolaire',
+                'E-learningAI',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

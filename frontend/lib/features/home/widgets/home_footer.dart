@@ -68,7 +68,7 @@ class HomeFooter extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             const Text(
-              'Guide Scolaire',
+              'E-learningAI',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
@@ -314,7 +314,7 @@ class HomeFooter extends StatelessWidget {
           runSpacing: 10,
           children: [
             const Text(
-              '© 2026 Guide Scolaire Comores. Tous droits réservés.',
+              '© 2026 E-learningAI. Tous droits réservés.',
               style: TextStyle(
                 color: Colors.white60,
                 fontSize: 13,

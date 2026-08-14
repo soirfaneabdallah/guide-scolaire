@@ -2,9 +2,11 @@
 
 import '../domain/entities/message.dart';
 
-/// Interface du repository chat.
-/// Permet de remplacer l'implémentation pour les tests.
 abstract class IChatRepository {
-  /// Envoie une question au serveur et retourne la réponse.
-  Future<Message> sendMessage(String question, {int? userId});
+  Future<Message> sendMessage(
+    String question, {
+    int? userId,
+    String? subjectSlug,
+    int? subjectId,  // 👈 AJOUT
+  });
 }

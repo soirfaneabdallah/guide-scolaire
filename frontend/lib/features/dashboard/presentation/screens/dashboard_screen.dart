@@ -25,7 +25,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Charger les matières au démarrage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<DashboardProvider>();
       provider.loadSubjects();
@@ -65,8 +64,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   right: BorderSide(color: AppColors.divider.withOpacity(0.5)),
                 ),
               ),
-              child: DashboardSidebar(
-                isCompact: isTablet,
+              child: const DashboardSidebar(  // 👈 Supprimer isCompact pour l'instant
+                isCompact: false,
               ),
             ),
           if (isDesktop)
@@ -191,3 +190,5 @@ class _BibliothequeView extends StatelessWidget {
     );
   }
 }
+
+

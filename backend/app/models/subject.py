@@ -11,13 +11,15 @@ class Subject(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    icon = Column(String(50), nullable=True)  # Emoji ou nom d'icône
-    color = Column(String(50), nullable=True)  # Code couleur hexadécimal
-    is_default = Column(Boolean, default=True)  # Matière par défaut du système
+    slug = Column(String(100), unique=True, nullable=False)
+    icon = Column(String(50), nullable=True)
+    color = Column(String(50), nullable=True)
+    is_default = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relations
-    user_subjects = relationship("UserSubject", back_populates="subject")
+    user_subjects = relationship("UserSubject", back_populates="subject", cascade="all, delete-orphan")
+    chat_history = relationship("ChatHistory", back_populates="subject", cascade="all, delete-orphan")
 
 
 class UserSubject(Base):
@@ -27,7 +29,7 @@ class UserSubject(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
-    custom_name = Column(String(100), nullable=True)  # Nom personnalisé (si différent)
+    custom_name = Column(String(100), nullable=True)
     custom_icon = Column(String(50), nullable=True)
     custom_color = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -41,7 +43,3 @@ class UserSubject(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'subject_id', name='uq_user_subject'),
     )
-
-
-# Ajouter la relation dans User (backend/app/models/user.py)
-# user_subjects = relationship("UserSubject", back_populates="user")

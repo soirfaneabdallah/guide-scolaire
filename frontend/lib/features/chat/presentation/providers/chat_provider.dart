@@ -6,17 +6,15 @@ import '../../domain/entities/message.dart';
 import '../../repositories/i_chat_repository.dart';
 import '../../domain/usecases/send_message.dart';
 
-/// Provider d'état du chat.
-/// Gère la liste des messages, l'état de chargement, et les erreurs.
 class ChatProvider extends ChangeNotifier {
   ChatProvider({
     required IChatRepository chatRepository,
     required AuthProvider authProvider,
+    required this.subjectId,
   })  : _sendMessageUseCase = SendMessageUseCase(chatRepository),
         _authProvider = authProvider {
-    // Initialiser avec un message de bienvenue
     _messages = [
-        Message(
+      Message(
         id: 'welcome',
         content:
             '👋 Bonjour ! Je suis ton assistant scolaire. Pose-moi une question sur n\'importe quel sujet de cours.',
@@ -34,6 +32,7 @@ class ChatProvider extends ChangeNotifier {
 
   final SendMessageUseCase _sendMessageUseCase;
   final AuthProvider _authProvider;
+  final int subjectId;
 
   List<Message> _messages = [];
   bool _isLoading = false;
@@ -43,13 +42,18 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// Ajoute un message utilisateur et envoie la requête.
+  // ✅ AJOUT : Méthode pour mettre à jour les messages depuis l'historique
+  void setMessages(List<Message> messages) {
+    _messages = messages;
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
     _error = null;
 
-    // Message utilisateur
     final userMessage = Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: content.trim(),
@@ -59,7 +63,6 @@ class ChatProvider extends ChangeNotifier {
     _messages.add(userMessage);
     notifyListeners();
 
-    // Message de l'assistant (placeholder pour le typage)
     final assistantPlaceholder = Message(
       id: 'typing_${DateTime.now().millisecondsSinceEpoch}',
       content: '',
@@ -72,23 +75,29 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final userId = _authProvider.userId;
+      
+      print('📤 Envoi de la question: $content');
+      print('📤 subjectId: $subjectId');
+      
       final response = await _sendMessageUseCase.execute(
         content.trim(),
         userId: userId,
+        subjectId: subjectId,
       );
+      
+      print('📥 Réponse reçue: ${response.content.substring(0, 50)}...');
 
-      // Remplacer le placeholder par la vraie réponse
       _messages.removeLast();
       _messages.add(response);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Remplacer le placeholder par un message d'erreur
+      print('❌ Erreur: $e');
       _messages.removeLast();
       _messages.add(
         Message(
           id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-          content: e.toString(),
+          content: '❌ Erreur: ${e.toString()}',
           isUser: false,
           timestamp: DateTime.now(),
           isError: true,
@@ -100,10 +109,9 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Efface toutes les conversations.
   void clearConversation() {
     _messages = [
-       Message(
+      Message(
         id: 'welcome',
         content:
             '👋 Bonjour ! Je suis ton assistant scolaire. Pose-moi une question sur n\'importe quel sujet de cours.',
@@ -121,7 +129,6 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Efface une erreur.
   void clearError() {
     _error = null;
     notifyListeners();

@@ -4,9 +4,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_client.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../chat/domain/entities/message.dart';
 import '../../chat/presentation/providers/chat_provider.dart';
-import '../../chat/presentation/widgets/pro_message_bubble.dart';  // 👈 AJOUT
+import '../../chat/presentation/widgets/pro_message_bubble.dart';
+import '../../chat/repositories/chat_repository.dart';
 import '../providers/dashboard_provider.dart';
 
 class DashboardSubjectChat extends StatefulWidget {
@@ -34,6 +37,19 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
   bool _isTyping = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<DashboardProvider>();
+      final subject = provider.selectedSubject;
+      if (subject != null) {
+        print('🔄 Chargement historique pour subjectId: ${subject.id}');
+        provider.loadChatHistory(subject.id);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
@@ -44,59 +60,104 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<DashboardProvider>(context);
-    final chatProvider = Provider.of<ChatProvider>(context);
-    final messages = provider.getMessagesForSubject(widget.subjectSlug);
-    final subject = provider.selectedSubject;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final apiClient = Provider.of<ApiClient>(context);
 
-    return Container(
-      color: isDark ? AppColors.darkBackground : AppColors.background,
-      child: Column(
-        children: [
-          _buildHeader(provider, messages, isDark),
-          Expanded(
-            child: messages.isEmpty
-                ? _buildEmptyState(subject)
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      if (index == messages.length - 1 &&
-                          _isTyping &&
-                          !message.isUser) {
-                        return ProMessageBubble(
-                          message: message.copyWith(
-                            content: _displayedResponse,
-                          ),
-                          isUser: false,
-                          isDark: isDark,
-                          isTyping: true,
-                        );
-                      }
-                      return ProMessageBubble(
-                        message: message,
-                        isUser: message.isUser,
-                        isDark: isDark,
-                      );
-                    },
-                  ),
+    return Consumer<DashboardProvider>(
+      builder: (context, dashboardProvider, _) {
+        final subject = dashboardProvider.selectedSubject;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        final effectiveSlug = subject?.slug ?? widget.subjectSlug;
+        final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
+
+        print('📊 Messages affichés: ${messages.length} pour $effectiveSlug');
+
+        final chatProvider = ChatProvider(
+          chatRepository: ChatRepository(apiClient: apiClient),
+          authProvider: authProvider,
+          subjectId: subject?.id ?? 1,
+        );
+        
+        if (messages.isNotEmpty) {
+          chatProvider.setMessages(messages);
+        }
+
+        return ChangeNotifierProvider<ChatProvider>.value(
+          value: chatProvider,
+          child: Consumer<ChatProvider>(
+            builder: (context, chatProv, _) {
+              final displayMessages = chatProv.messages;
+              final isLoading = chatProv.isLoading;
+
+              return Container(
+                color: isDark ? AppColors.darkBackground : AppColors.background,
+                child: Column(
+                  children: [
+                    _buildHeader(dashboardProvider, displayMessages, isDark),
+                    Expanded(
+                      child: isLoading
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'L\'assistant réfléchit...',
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : displayMessages.isEmpty
+                              ? _buildEmptyState(subject, dashboardProvider)
+                              : ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: displayMessages.length,
+                                  itemBuilder: (context, index) {
+                                    final message = displayMessages[index];
+                                    if (index == displayMessages.length - 1 &&
+                                        _isTyping &&
+                                        !message.isUser) {
+                                      return ProMessageBubble(
+                                        message: message.copyWith(
+                                          content: _displayedResponse,
+                                        ),
+                                        isUser: false,
+                                        isDark: isDark,
+                                        isTyping: true,
+                                      );
+                                    }
+                                    return ProMessageBubble(
+                                      message: message,
+                                      isUser: message.isUser,
+                                      isDark: isDark,
+                                    );
+                                  },
+                                ),
+                    ),
+                    if (displayMessages.isNotEmpty && !_isTyping) _buildSuggestions(),
+                    _buildInputBar(dashboardProvider, chatProv),
+                  ],
+                ),
+              );
+            },
           ),
-          if (messages.isNotEmpty && !_isTyping) _buildSuggestions(),
-          _buildInputBar(provider, chatProvider),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildHeader(
-    DashboardProvider provider,
+    DashboardProvider dashboardProvider,
     List<Message> messages,
     bool isDark,
   ) {
-    final subject = provider.selectedSubject;
+    final subject = dashboardProvider.selectedSubject;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -164,7 +225,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18),
-              onPressed: () => _clearChat(provider),
+              onPressed: () => _clearChat(dashboardProvider),
               tooltip: 'Effacer la discussion',
               color: AppColors.textSecondary,
             ),
@@ -174,7 +235,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     );
   }
 
-  Widget _buildEmptyState(Subject? subject) {
+  Widget _buildEmptyState(Subject? subject, DashboardProvider dashboardProvider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Center(
@@ -227,20 +288,14 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
                 label: 'Explique-moi ce concept',
                 onTap: () {
                   _controller.text = 'Explique-moi ce concept';
-                  _sendMessage(
-                    Provider.of<DashboardProvider>(context, listen: false),
-                    Provider.of<ChatProvider>(context, listen: false),
-                  );
+                  _sendMessage(dashboardProvider);
                 },
               ),
               _QuickSuggestion(
                 label: 'Donne-moi un exemple',
                 onTap: () {
                   _controller.text = 'Donne-moi un exemple';
-                  _sendMessage(
-                    Provider.of<DashboardProvider>(context, listen: false),
-                    Provider.of<ChatProvider>(context, listen: false),
-                  );
+                  _sendMessage(dashboardProvider);
                 },
               ),
             ],
@@ -280,7 +335,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     );
   }
 
-  Widget _buildInputBar(DashboardProvider provider, ChatProvider chatProvider) {
+  Widget _buildInputBar(DashboardProvider dashboardProvider, ChatProvider chatProvider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -312,7 +367,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
                 child: TextField(
                   controller: _controller,
                   focusNode: _focusNode,
-                  onSubmitted: (_) => _sendMessage(provider, chatProvider),
+                  onSubmitted: (_) => _sendMessage(dashboardProvider),
                   enabled: !_isTyping,
                   decoration: InputDecoration(
                     hintText: _isTyping
@@ -346,7 +401,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: _isTyping ? null : () => _sendMessage(provider, chatProvider),
+                  onTap: _isTyping ? null : () => _sendMessage(dashboardProvider),
                   borderRadius: BorderRadius.circular(30),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
@@ -366,11 +421,14 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
   }
 
   // ============================================================
-  // ⭐ ENVOI DE MESSAGE (connecté au backend)
+  // ⭐ ENVOI DE MESSAGE
   // ============================================================
-  void _sendMessage(DashboardProvider provider, ChatProvider chatProvider) {
+  void _sendMessage(DashboardProvider dashboardProvider) {
     final text = _controller.text.trim();
     if (text.isEmpty || _isTyping) return;
+
+    final subject = dashboardProvider.selectedSubject;
+    final effectiveSlug = subject?.slug ?? widget.subjectSlug;
 
     final userMessage = Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -378,7 +436,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       isUser: true,
       timestamp: DateTime.now(),
     );
-    provider.addMessage(widget.subjectSlug, userMessage);
+    dashboardProvider.addMessage(effectiveSlug, userMessage);
 
     _controller.clear();
     _focusNode.unfocus();
@@ -389,20 +447,26 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       _currentCharIndex = 0;
     });
 
+    final chatProvider = context.read<ChatProvider>();
+
     chatProvider.sendMessage(text).then((_) {
-      _handleResponse(provider, chatProvider);
+      if (subject != null) {
+        dashboardProvider.loadChatHistory(subject.id);
+      }
     }).catchError((error) {
-      _handleError(provider, error);
+      _handleError(dashboardProvider, error);
     });
   }
 
   // ============================================================
   // ⭐ GESTION DE LA RÉPONSE
   // ============================================================
-  void _handleResponse(DashboardProvider provider, ChatProvider chatProvider) {
-    final messages = chatProvider.messages;
-    Message? lastAssistantMessage;
+  void _handleResponse(DashboardProvider dashboardProvider) {
+    final subject = dashboardProvider.selectedSubject;
+    final effectiveSlug = subject?.slug ?? widget.subjectSlug;
+    final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
 
+    Message? lastAssistantMessage;
     for (int i = messages.length - 1; i >= 0; i--) {
       if (!messages[i].isUser) {
         lastAssistantMessage = messages[i];
@@ -411,7 +475,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     }
 
     if (lastAssistantMessage == null) {
-      _handleError(provider, 'Aucune réponse reçue');
+      _handleError(dashboardProvider, 'Aucune réponse reçue');
       return;
     }
 
@@ -435,13 +499,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
         _scrollToBottom();
       } else {
         timer.cancel();
-        final assistantMessage = Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          content: fullResponse,
-          isUser: false,
-          timestamp: DateTime.now(),
-        );
-        provider.addMessage(widget.subjectSlug, assistantMessage);
         setState(() {
           _isTyping = false;
           _displayedResponse = '';
@@ -455,7 +512,10 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
   // ============================================================
   // ⭐ GESTION DES ERREURS
   // ============================================================
-  void _handleError(DashboardProvider provider, dynamic error) {
+  void _handleError(DashboardProvider dashboardProvider, dynamic error) {
+    final subject = dashboardProvider.selectedSubject;
+    final effectiveSlug = subject?.slug ?? widget.subjectSlug;
+
     final errorMessage = Message(
       id: 'error_${DateTime.now().millisecondsSinceEpoch}',
       content: '❌ Erreur: $error',
@@ -463,7 +523,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       timestamp: DateTime.now(),
       isError: true,
     );
-    provider.addMessage(widget.subjectSlug, errorMessage);
+    dashboardProvider.addMessage(effectiveSlug, errorMessage);
     setState(() {
       _isTyping = false;
       _displayedResponse = '';
@@ -486,8 +546,10 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     });
   }
 
-  void _clearChat(DashboardProvider provider) {
-    provider.clearSubjectHistory(widget.subjectSlug);
+  void _clearChat(DashboardProvider dashboardProvider) {
+    final subject = dashboardProvider.selectedSubject;
+    final effectiveSlug = subject?.slug ?? widget.subjectSlug;
+    dashboardProvider.clearSubjectHistory(effectiveSlug);
     _typingTimer?.cancel();
     setState(() {
       _isTyping = false;

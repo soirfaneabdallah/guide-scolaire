@@ -39,7 +39,7 @@ class HomeDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Guide Scolaire',
+                    'E-learningAI',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,

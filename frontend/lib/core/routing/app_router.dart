@@ -8,7 +8,7 @@ import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chat/presentation/providers/chat_provider.dart';
 import '../../features/chat/repositories/chat_repository.dart';
 import '../../features/auth/providers/auth_provider.dart';
-import '../../features/home/presentation/screens/home_screen.dart';  // 👈 AJOUTER
+import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../network/api_client.dart';
 import 'app_routes.dart';
@@ -18,53 +18,58 @@ class AppRouter {
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      // 🔥 CORRECTION : Séparer home et dashboard
       case AppRoutes.home:
         return _fadeRoute(
           settings,
-          (_) =>  HomeScreen(),  // ✅ Page d'accueil publique
+          (_) => HomeScreen(),
         );
 
       case AppRoutes.dashboard:
         return _fadeRoute(
           settings,
-          (_) => const DashboardScreen(),  // ✅ Dashboard après connexion
+          (_) => DashboardScreen(),
         );
 
       case AppRoutes.login:
         return _fadeRoute(
           settings,
-          (_) => const LoginPage(),
+          (_) => LoginPage(),
         );
 
       case AppRoutes.register:
         return _fadeRoute(
           settings,
-          (_) => const RegisterPage(),
+          (_) => RegisterPage(),
         );
 
-      case AppRoutes.chat:
-        final args = settings.arguments as Map<String, dynamic>?;
-        final initialQuestion = args?['question'] as String?;
+      // frontend/lib/core/routing/app_router.dart
 
-        return _slideRoute(
-          settings,
-          (context) {
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
-            final apiClient = Provider.of<ApiClient>(context, listen: false);
-            final chatRepository = ChatRepository(apiClient: apiClient);
-            final chatProvider = ChatProvider(
-              chatRepository: chatRepository,
-              authProvider: authProvider,
-            );
-            return Provider<ChatProvider>(
-              create: (_) => chatProvider,
-              child: ChatScreen(
-                initialQuestion: initialQuestion,
-              ),
-            );
-          },
+  case AppRoutes.chat:
+    final args = settings.arguments as Map<String, dynamic>?;
+    final initialQuestion = args?['question'] as String?;
+    final subjectId = args?['subjectId'] as int? ?? 1;  // 👈 ID par défaut (Mathématiques)
+
+    return _slideRoute(
+      settings,
+      (context) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final apiClient = Provider.of<ApiClient>(context, listen: false);
+        final chatRepository = ChatRepository(apiClient: apiClient);
+        
+        final chatProvider = ChatProvider(
+          chatRepository: chatRepository,
+          authProvider: authProvider,
+          subjectId: subjectId,  // 👈 Uniquement l'ID
         );
+        
+        return Provider<ChatProvider>(
+          create: (_) => chatProvider,
+          child: ChatScreen(
+            initialQuestion: initialQuestion,
+          ),
+        );
+      },
+    );
 
       case String route when route.startsWith('/course/'):
         final id = route.split('/').last;

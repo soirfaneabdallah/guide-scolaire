@@ -21,18 +21,40 @@ class SubjectRepository:
     def get_subject_by_id(self, subject_id: int) -> Optional[Subject]:
         return self.db.query(Subject).filter(Subject.id == subject_id).first()
 
-    def create_default_subject(self, name: str, icon: str = None, color: str = None) -> Subject:
-        """Crée une matière par défaut (admin seulement)"""
-        subject = Subject(
-            name=name,
-            icon=icon,
-            color=color,
-            is_default=True
-        )
-        self.db.add(subject)
+    def get_subject_by_slug(self, slug: str) -> Optional[Subject]:
+        return self.db.query(Subject).filter(Subject.slug == slug).first()
+
+    # ============================================================
+    #  INITIALISATION DES MATIÈRES PAR DÉFAUT (CORRIGÉE)
+    # ============================================================
+
+    def init_default_subjects(self):
+        """Initialise les matières par défaut avec slug correct"""
+        default_subjects = [
+            {"name": "Mathématiques", "slug": "mathematiques", "icon": "📐", "color": "#4CAF50"},
+            {"name": "Français", "slug": "francais", "icon": "📖", "color": "#2196F3"},
+            {"name": "Physique-Chimie", "slug": "physique", "icon": "⚡", "color": "#FF9800"},
+            {"name": "SVT", "slug": "svt", "icon": "🧬", "color": "#9C27B0"},
+            {"name": "Histoire-Géographie", "slug": "histoire", "icon": "🏛️", "color": "#795548"},
+            {"name": "Anglais", "slug": "anglais", "icon": "🗣️", "color": "#F44336"},
+        ]
+
+        for subject_data in default_subjects:
+            existing = self.db.query(Subject).filter(
+                Subject.name == subject_data["name"],
+                Subject.is_default == True
+            ).first()
+            if not existing:
+                subject = Subject(
+                    name=subject_data["name"],
+                    slug=subject_data["slug"],  # 👈 Utiliser le slug défini
+                    icon=subject_data["icon"],
+                    color=subject_data["color"],
+                    is_default=True
+                )
+                self.db.add(subject)
+
         self.db.commit()
-        self.db.refresh(subject)
-        return subject
 
     # ============================================================
     #  MATIÈRES UTILISATEUR
@@ -57,7 +79,6 @@ class SubjectRepository:
 
     def add_subject_to_user(self, user_id: int, subject_id: int, **kwargs) -> UserSubject:
         """Ajoute une matière à un utilisateur"""
-        # Vérifier si déjà présente
         existing = self.db.query(UserSubject).filter(
             UserSubject.user_id == user_id,
             UserSubject.subject_id == subject_id
@@ -115,34 +136,3 @@ class SubjectRepository:
         self.db.commit()
         self.db.refresh(user_subject)
         return user_subject
-
-    # ============================================================
-    #  INITIALISATION
-    # ============================================================
-
-    def init_default_subjects(self):
-        """Initialise les matières par défaut si elles n'existent pas"""
-        default_subjects = [
-            {"name": "Mathématiques", "icon": "📐", "color": "#4CAF50"},
-            {"name": "Français", "icon": "📖", "color": "#2196F3"},
-            {"name": "Physique-Chimie", "icon": "⚡", "color": "#FF9800"},
-            {"name": "SVT", "icon": "🧬", "color": "#9C27B0"},
-            {"name": "Histoire-Géographie", "icon": "🏛️", "color": "#795548"},
-            {"name": "Anglais", "icon": "🗣️", "color": "#F44336"},
-        ]
-
-        for subject_data in default_subjects:
-            existing = self.db.query(Subject).filter(
-                Subject.name == subject_data["name"],
-                Subject.is_default == True
-            ).first()
-            if not existing:
-                subject = Subject(
-                    name=subject_data["name"],
-                    icon=subject_data["icon"],
-                    color=subject_data["color"],
-                    is_default=True
-                )
-                self.db.add(subject)
-
-        self.db.commit()
