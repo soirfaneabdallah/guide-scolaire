@@ -34,14 +34,14 @@ class SubjectResponse(SubjectBase):
 #  SCHÉMAS MATIÈRES UTILISATEUR
 # ============================================================
 
-class UserSubjectBase(BaseModel):
-    subject_id: int
-    custom_name: Optional[str] = None
+class UserSubjectCreate(BaseModel):
+    # ✅ Plus de subject_id ! Le backend va le générer
+    name: str  # Le nom de la nouvelle matière
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    custom_name: Optional[str] = None  # Nom personnalisé pour l'utilisateur
     custom_icon: Optional[str] = None
     custom_color: Optional[str] = None
-
-class UserSubjectCreate(UserSubjectBase):
-    pass
 
 class UserSubjectUpdate(BaseModel):
     custom_name: Optional[str] = None
@@ -57,7 +57,7 @@ class UserSubjectResponse(BaseModel):
     custom_icon: Optional[str] = None
     custom_color: Optional[str] = None
     is_active: bool
-    subject: SubjectResponse  # Matière de base
+    subject: SubjectResponse
     created_at: datetime
 
     class Config:
@@ -65,5 +65,5 @@ class UserSubjectResponse(BaseModel):
 
 class UserSubjectListResponse(BaseModel):
     """Réponse pour la liste des matières de l'utilisateur"""
-    default_subjects: list[SubjectResponse]  # Matières par défaut
-    custom_subjects: list[UserSubjectResponse]  # Matières personnalisées
+    default_subjects: list[SubjectResponse]
+    custom_subjects: list[UserSubjectResponse]

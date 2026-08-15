@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../chat/domain/entities/message.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/icon_utils.dart';
 
 // ============================================================
 //  MODÈLE MATIÈRE
@@ -16,6 +17,7 @@ class Subject {
   final String? icon;
   final String? color;
   final bool isDefault;
+  final bool isActive;
 
   Subject({
     required this.id,
@@ -24,7 +26,10 @@ class Subject {
     this.icon,
     this.color,
     this.isDefault = false,
+    this.isActive = true,
   });
+
+  String get displayName => name;
 
   factory Subject.fromJson(Map<String, dynamic> json) {
     return Subject(
@@ -34,6 +39,7 @@ class Subject {
       icon: json['icon'],
       color: json['color'],
       isDefault: json['is_default'] ?? false,
+      isActive: json['is_active'] ?? true,
     );
   }
 
@@ -42,6 +48,7 @@ class Subject {
       'name': name,
       'icon': icon,
       'color': color,
+      'is_active': isActive,
     };
   }
 
@@ -52,6 +59,7 @@ class Subject {
     String? icon,
     String? color,
     bool? isDefault,
+    bool? isActive,
   }) {
     return Subject(
       id: id ?? this.id,
@@ -60,6 +68,7 @@ class Subject {
       icon: icon ?? this.icon,
       color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
+      isActive: isActive ?? this.isActive,
     );
   }
 
@@ -204,6 +213,7 @@ class DashboardProvider extends ChangeNotifier {
             icon: item['custom_icon'] ?? subjectData['icon'],
             color: item['custom_color'] ?? subjectData['color'],
             isDefault: false,
+            isActive: item['is_active'] ?? true,
           ));
         }
 
@@ -310,16 +320,13 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Forcer le rechargement (après envoi de message)
   Future<void> refreshChatHistory(int subjectId) async {
     if (apiClient == null) return;
 
-    // Vider les messages pour cette matière
     final subject = _subjects.firstWhere((s) => s.id == subjectId, orElse: () => _subjects.first);
     final normalizedSlug = _normalizeSlug(subject.slug);
     _subjectChats[normalizedSlug] = [];
     
-    // Recharger
     await loadChatHistory(subjectId);
   }
 
@@ -327,19 +334,22 @@ class DashboardProvider extends ChangeNotifier {
   //  GESTION DES MATIÈRES (CRUD)
   // ============================================================
 
-  Future<bool> addSubject({
+  // ✅ CRÉER UNE NOUVELLE MATIÈRE
+  Future<bool> createSubject({
     required String name,
     String? icon,
     String? color,
   }) async {
     if (apiClient == null) {
+      // Mode hors ligne
       final newSubject = Subject(
         id: _subjects.length + 100,
         name: name,
         slug: _normalizeSlug(name),
-        icon: icon,
-        color: color,
+        icon: icon ?? '📚',
+        color: color ?? '#4CAF50',
         isDefault: false,
+        isActive: true,
       );
       _subjects.add(newSubject);
       _subjectChats[_normalizeSlug(newSubject.slug)] = [];
@@ -349,16 +359,54 @@ class DashboardProvider extends ChangeNotifier {
 
     try {
       _isLoading = true;
+      _error = null;
       notifyListeners();
 
       final response = await apiClient!.post(
         '/subjects/me',
         data: {
-          'subject_id': 0,
-          'custom_name': name,
-          'custom_icon': icon,
-          'custom_color': color,
+          'name': name,
+          'icon': icon ?? '📚',
+          'color': color ?? '#4CAF50',
         },
+      );
+
+      if (response.statusCode == 201) {
+        await loadSubjects();
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Erreur lors de la création de la matière';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ✅ AJOUTER UNE MATIÈRE EXISTANTE À L'UTILISATEUR
+  Future<bool> addExistingSubjectToUser(int subjectId) async {
+    if (apiClient == null) return false;
+
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final response = await apiClient!.post(
+        '/subjects/me',
+        data: {'subject_id': subjectId},
       );
 
       if (response.statusCode == 201) {
@@ -385,6 +433,7 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  // ✅ MODIFIER UNE MATIÈRE
   Future<bool> updateSubject({
     required int subjectId,
     String? name,
@@ -450,6 +499,7 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  // ✅ SUPPRIMER UNE MATIÈRE
   Future<bool> deleteSubject(int subjectId) async {
     if (apiClient == null) {
       final index = _subjects.indexWhere((s) => s.id == subjectId);

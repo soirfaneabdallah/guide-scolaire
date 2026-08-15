@@ -5,8 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
-//import '../screens/subject_management_screen.dart';
-
+import 'create_subject_dialog.dart'; // ✅ Import du nouveau dialogue
 
 class DashboardSidebar extends StatelessWidget {
   const DashboardSidebar({
@@ -322,234 +321,414 @@ class DashboardSidebar extends StatelessWidget {
   }
 
   // ============================================================
-  //  DIALOGUES CONNECTÉS AU PROVIDER
+  //  DIALOGUES AVEC SÉLECTEURS VISUELS
   // ============================================================
 
-  void _showAddSubjectDialog(BuildContext context, DashboardProvider provider) {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController iconController = TextEditingController();
-    final TextEditingController colorController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter une matière'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom de la matière *',
-                hintText: 'Ex: Informatique',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: iconController,
-              decoration: const InputDecoration(
-                labelText: 'Icône (emoji)',
-                hintText: 'Ex: 💻',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: colorController,
-              decoration: const InputDecoration(
-                labelText: 'Couleur (hexadécimal)',
-                hintText: 'Ex: #FF5722',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez entrer un nom'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-                return;
-              }
 
-              final success = await provider.addSubject(
-                name: nameController.text.trim(),
-                icon: iconController.text.trim().isEmpty ? null : iconController.text.trim(),
-                color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
-              );
+// Dans _showAddSubjectDialog
+void _showAddSubjectDialog(BuildContext context, DashboardProvider provider) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
 
-              if (!context.mounted) return;
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success ? '✅ Matière ajoutée avec succès' : '❌ ${provider.error ?? "Erreur"}',
-                  ),
-                  backgroundColor: success ? AppColors.success : AppColors.error,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: provider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) => CreateSubjectDialog(
+      provider: provider,
+      isDark: isDark,
+    ),
+  );
+}
+  // ✅ DIALOGUE D'ÉDITION AMÉLIORÉ
   void _showEditSubjectDialog(BuildContext context, DashboardProvider provider, Subject subject) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final TextEditingController nameController = TextEditingController(text: subject.name);
     final TextEditingController iconController = TextEditingController(text: subject.icon ?? '');
     final TextEditingController colorController = TextEditingController(text: subject.color ?? '');
+    bool isLoading = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Modifier ${subject.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom de la matière *',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: iconController,
-              decoration: const InputDecoration(
-                labelText: 'Icône (emoji)',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: colorController,
-              decoration: const InputDecoration(
-                labelText: 'Couleur (hexadécimal)',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+      barrierDismissible: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez entrer un nom'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-                return;
-              }
-
-              final success = await provider.updateSubject(
-                subjectId: subject.id,
-                name: nameController.text.trim(),
-                icon: iconController.text.trim().isEmpty ? null : iconController.text.trim(),
-                color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
-              );
-
-              if (!context.mounted) return;
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success ? '✅ Matière modifiée' : '❌ ${provider.error ?? "Erreur"}',
-                  ),
-                  backgroundColor: success ? AppColors.success : AppColors.error,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: provider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // En-tête
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
                     ),
-                  )
-                : const Text('Modifier'),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Modifier la matière',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Champ nom
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nom de la matière *',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                    prefixIcon: const Icon(Icons.school_outlined),
+                    filled: true,
+                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+                  ),
+                  style: TextStyle(
+                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Sélecteur d'icône (simplifié)
+                Text(
+                  '😊 Icône',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: iconController,
+                  decoration: InputDecoration(
+                    hintText: 'Entrez un emoji (ex: 📚)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Sélecteur de couleur (simplifié)
+                Text(
+                  '🎨 Couleur',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: colorController,
+                  decoration: InputDecoration(
+                    hintText: 'Entrez une couleur hex (ex: #4CAF50)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 2,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: isLoading ? null : () => Navigator.pop(context),
+                      child: Text(
+                        'Annuler',
+                        style: TextStyle(
+                          color: AppColors.textTertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: isLoading ? null : () async {
+                        if (nameController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Veuillez entrer un nom'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                          return;
+                        }
+
+                        setState(() => isLoading = true);
+
+                        final success = await provider.updateSubject(
+                          subjectId: subject.id,
+                          name: nameController.text.trim(),
+                          icon: iconController.text.trim().isEmpty ? null : iconController.text.trim(),
+                          color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
+                        );
+
+                        if (!context.mounted) return;
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success ? '✅ Matière modifiée avec succès' : '❌ ${provider.error ?? "Erreur"}',
+                            ),
+                            backgroundColor: success ? AppColors.success : AppColors.error,
+                          ),
+                        );
+                      },
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save, size: 18),
+                      label: Text(isLoading ? 'Enregistrement...' : 'Enregistrer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 
+  // ✅ DIALOGUE DE SUPPRESSION AMÉLIORÉ
   void _showDeleteSubjectDialog(BuildContext context, DashboardProvider provider, Subject subject) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    bool isLoading = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Supprimer ${subject.name}'),
-        content: Text(
-          'Voulez-vous vraiment supprimer la matière "${subject.name}" ?\n\n'
-          'Cette action est irréversible.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+      barrierDismissible: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          TextButton(
-            onPressed: () async {
-              final success = await provider.deleteSubject(subject.id);
-
-              if (!context.mounted) return;
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success ? '✅ Matière supprimée' : '❌ ${provider.error ?? "Erreur"}',
-                  ),
-                  backgroundColor: success ? AppColors.success : AppColors.error,
+          title: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: provider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.error,
-                    ),
-                  )
-                : const Text('Supprimer'),
+                child: const Center(
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Supprimer',
+                style: TextStyle(
+                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Voulez-vous vraiment supprimer la matière',
+                style: TextStyle(
+                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '"${subject.name}" ?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.error.withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppColors.error,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        subject.isDefault
+                            ? 'Cette matière est une matière par défaut. Elle sera retirée de votre liste mais restera disponible pour les autres utilisateurs.'
+                            : 'Cette action est irréversible.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.error.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: Text(
+                'Annuler',
+                style: TextStyle(color: AppColors.textTertiary),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                setState(() => isLoading = true);
+
+                final success = await provider.deleteSubject(subject.id);
+
+                if (!context.mounted) return;
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success ? '✅ Matière supprimée avec succès' : '❌ ${provider.error ?? "Erreur"}',
+                    ),
+                    backgroundColor: success ? AppColors.success : AppColors.error,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Supprimer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -684,7 +863,6 @@ class _SubjectItem extends StatelessWidget {
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 👇 BOUTON TROIS POINTS
                 if (!isCompact)
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 18),
@@ -758,8 +936,6 @@ class _AddSubjectButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? AppColors.textWhite : AppColors.textSecondary;
-
     return Material(
       color: Colors.transparent,
       child: ListTile(

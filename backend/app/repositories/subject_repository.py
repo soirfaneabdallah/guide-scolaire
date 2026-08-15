@@ -23,7 +23,11 @@ class SubjectRepository:
 
     def get_subject_by_slug(self, slug: str) -> Optional[Subject]:
         return self.db.query(Subject).filter(Subject.slug == slug).first()
+    # backend/app/repositories/subject_repository.py
 
+    def get_subject_by_name(self, name: str) -> Optional[Subject]:
+        """Récupère une matière par son nom"""
+        return self.db.query(Subject).filter(Subject.name == name).first()
     # ============================================================
     #  INITIALISATION DES MATIÈRES PAR DÉFAUT (CORRIGÉE)
     # ============================================================

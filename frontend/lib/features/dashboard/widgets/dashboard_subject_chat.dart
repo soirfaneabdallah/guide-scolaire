@@ -25,7 +25,8 @@ class DashboardSubjectChat extends StatefulWidget {
   State<DashboardSubjectChat> createState() => _DashboardSubjectChatState();
 }
 
-class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
+class _DashboardSubjectChatState extends State<DashboardSubjectChat>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -34,16 +35,29 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
   bool _isInitialLoad = true;
   bool _showScrollToBottom = false;
 
-  // ======================================================================
   // Typewriter effect state
-  // ======================================================================
-  final Map<String, String> _typedContents = {}; // messageId -> displayed text
+  final Map<String, String> _typedContents = {};
   final Map<String, Timer> _typingTimers = {};
-  final Set<String> _typingIds = {}; // messages currently being typed
+  final Set<String> _typingIds = {};
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _animationController.forward();
+
     _loadChatHistory();
     _scrollController.addListener(_onScroll);
   }
@@ -59,22 +73,21 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     }
   }
 
-  // ======================================================================
-  // Load chat history – no auto‑scroll
-  // ======================================================================
+  // ============================================================
+  //  LOAD CHAT HISTORY – NO AUTO‑SCROLL
+  // ============================================================
+
   void _loadChatHistory() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<DashboardProvider>();
       final subject = provider.selectedSubject;
       if (subject != null) {
         provider.loadChatHistory(subject.id).then((_) {
-          // Initialize typed contents for all existing messages (show them fully)
           final messages = provider.getMessagesForSubject(widget.subjectSlug);
           _initializeTypedContents(messages);
           setState(() {
             _isInitialLoad = false;
           });
-          // NO SCROLL
         });
       } else {
         setState(() {
@@ -86,9 +99,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
 
   void _initializeTypedContents(List<Message> messages) {
     for (final msg in messages) {
-      // For user messages, we show full content immediately.
-      // For assistant messages, we also store full content so they are displayed fully
-      // (they won't trigger the typewriter effect because they are already in the map).
       _typedContents[msg.id] = msg.content;
     }
   }
@@ -98,7 +108,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.subjectSlug != widget.subjectSlug) {
       _isInitialLoad = true;
-      // Cancel any ongoing typing timers for the old subject
       _cancelAllTypingTimers();
       _typedContents.clear();
       _typingIds.clear();
@@ -117,26 +126,27 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
   @override
   void dispose() {
     _cancelAllTypingTimers();
+    _animationController.dispose();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  // ======================================================================
-  // Typewriter effect
-  // ======================================================================
+  // ============================================================
+  //  TYPEWRITER EFFECT
+  // ============================================================
+
   void _startTypingEffect(Message message) {
     if (_typingIds.contains(message.id)) return;
-    if (_typedContents.containsKey(message.id)) return; // already fully displayed
+    if (_typedContents.containsKey(message.id)) return;
 
-    // Initialize with empty string
     _typedContents[message.id] = '';
     _typingIds.add(message.id);
 
     int index = 0;
     final fullContent = message.content;
-    final timer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
+    final timer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
       if (index < fullContent.length) {
         _typedContents[message.id] = fullContent.substring(0, index + 1);
         setState(() {});
@@ -145,7 +155,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
         timer.cancel();
         _typingTimers.remove(message.id);
         _typingIds.remove(message.id);
-        // Ensure full content is stored
         _typedContents[message.id] = fullContent;
         setState(() {});
       }
@@ -153,9 +162,10 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     _typingTimers[message.id] = timer;
   }
 
-  // ======================================================================
-  // Send message – no auto‑scroll
-  // ======================================================================
+  // ============================================================
+  //  SEND MESSAGE – NO AUTO‑SCROLL
+  // ============================================================
+
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
@@ -164,7 +174,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     final subject = dashboardProvider.selectedSubject;
     final effectiveSlug = subject?.slug ?? widget.subjectSlug;
 
-    // Add user message locally (optimistic update)
     final userMessage = Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: text,
@@ -172,7 +181,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       timestamp: DateTime.now(),
     );
     dashboardProvider.addMessage(effectiveSlug, userMessage);
-    // Store full content for user message immediately
     _typedContents[userMessage.id] = userMessage.content;
 
     _controller.clear();
@@ -191,22 +199,16 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     chatRepository
         .sendMessage(text, userId: userId, subjectId: subjectId)
         .then((response) {
-      // Refresh history to get the assistant's reply
       dashboardProvider.refreshChatHistory(subjectId).then((_) {
-        // Get updated messages
         final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
-        // Find the assistant message that is not yet in _typedContents
-        // (we want to start typewriter for new assistant messages)
         for (final msg in messages) {
           if (!msg.isUser && !_typedContents.containsKey(msg.id)) {
-            // This is a new assistant message – start typewriter
             _startTypingEffect(msg);
           }
         }
         setState(() {
           _isSending = false;
         });
-        // NO SCROLL
       });
     }).catchError((error) {
       debugPrint('❌ Erreur envoi: $error');
@@ -219,7 +221,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
         isError: true,
       );
       dashboardProvider.addMessage(effectiveSlug, errorMessage);
-      // Show error message fully (no typewriter)
       _typedContents[errorMessage.id] = errorMessage.content;
 
       setState(() {
@@ -238,17 +239,30 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     setState(() {
       _isSending = false;
     });
-    // NO SCROLL
   }
 
-  // ======================================================================
-  // Build
-  // ======================================================================
+  // ============================================================
+  //  SCROLL TO BOTTOM (MANUAL)
+  // ============================================================
+
+  void _scrollToBottomInstant() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  // ============================================================
+  //  BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final apiClient = Provider.of<ApiClient>(context);
-
     return Consumer<DashboardProvider>(
       builder: (context, dashboardProvider, _) {
         final subject = dashboardProvider.selectedSubject;
@@ -257,19 +271,11 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
         final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
         final isLoading = dashboardProvider.isLoading || _isInitialLoad;
 
-        // For any new assistant messages that appear (e.g. after refresh)
-        // but are not yet being typed and not fully displayed, start typing.
-        // However, we must be careful not to start typing for messages that
-        // were already fully displayed before (they have entries in _typedContents).
-        // This is already handled in _sendMessage after refresh, but also
-        // when the list changes due to external updates, we can check here.
-        // To avoid repeated calls, we only trigger if not already in progress.
+        // Start typewriter for new assistant messages
         for (final msg in messages) {
           if (!msg.isUser &&
               !_typedContents.containsKey(msg.id) &&
               !_typingIds.contains(msg.id)) {
-            // This is a new assistant message – start typewriter
-            // We use addPostFrameCallback to avoid modifying state during build.
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 _startTypingEffect(msg);
@@ -278,37 +284,40 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
           }
         }
 
-        return Container(
-          color: isDark ? AppColors.darkBackground : AppColors.background,
-          child: Column(
-            children: [
-              _buildHeader(dashboardProvider, messages, isDark),
-              Expanded(
-                child: Stack(
-                  children: [
-                    _buildMessageList(messages, isLoading, isDark, subject),
-                    if (_showScrollToBottom && messages.isNotEmpty)
-                      Positioned(
-                        bottom: 20,
-                        right: 20,
-                        child: _buildScrollToBottomButton(),
-                      ),
-                  ],
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: Container(
+            color: isDark ? AppColors.darkBackground : AppColors.background,
+            child: Column(
+              children: [
+                _buildHeader(dashboardProvider, messages, isDark),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      _buildMessageList(messages, isLoading, isDark, subject),
+                      if (_showScrollToBottom && messages.isNotEmpty)
+                        Positioned(
+                          bottom: 20,
+                          right: 20,
+                          child: _buildScrollToBottomButton(),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              _buildTypingIndicator(),
-              if (messages.isNotEmpty && !_isSending) _buildSuggestions(),
-              _buildInputBar(dashboardProvider),
-            ],
+                _buildTypingIndicator(),
+                if (messages.isNotEmpty && !_isSending) _buildSuggestions(),
+                _buildInputBar(dashboardProvider),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  // ======================================================================
-  // Sub‑widgets
-  // ======================================================================
+  // ============================================================
+  //  MESSAGE LIST
+  // ============================================================
 
   Widget _buildMessageList(
     List<Message> messages,
@@ -339,7 +348,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       return _buildEmptyState(subject);
     }
 
-    // Group messages by date
     final groupedMessages = _groupMessagesByDate(messages);
 
     return ListView.builder(
@@ -354,11 +362,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
             _buildDateSeparator(group.date, isDark),
             const SizedBox(height: 8),
             ...group.messages.map((message) {
-              // Determine the text to display: if it's a user message or already fully typed, show full content.
-              // For assistant messages, use the typed content if available, otherwise fallback to full content
-              // (but we always have it in _typedContents for existing messages).
               final displayContent = _typedContents[message.id] ?? message.content;
-              // Create a copy of the message with the possibly partial content
               final displayMessage = message.copyWith(content: displayContent);
               return ProMessageBubble(
                 message: displayMessage,
@@ -405,96 +409,9 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     );
   }
 
-  Widget _buildTypingIndicator() {
-    if (!_isSending) return const SizedBox.shrink();
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'L\'assistant écrit...',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? AppColors.textWhite : AppColors.textSecondary,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScrollToBottomButton() {
-    return GestureDetector(
-      onTap: _scrollToBottomInstant,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.arrow_downward_rounded,
-          color: Colors.white,
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  // Only called when user taps the button – manual scroll
-  void _scrollToBottomInstant() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  List<_MessageGroup> _groupMessagesByDate(List<Message> messages) {
-    final groups = <_MessageGroup>[];
-    DateTime? currentDate;
-
-    for (final message in messages) {
-      final dateOnly = DateTime(
-        message.timestamp.year,
-        message.timestamp.month,
-        message.timestamp.day,
-      );
-
-      if (currentDate == null || dateOnly != currentDate) {
-        currentDate = dateOnly;
-        groups.add(_MessageGroup(date: dateOnly, messages: []));
-      }
-
-      groups.last.messages.add(message);
-    }
-
-    return groups;
-  }
+  // ============================================================
+  //  HEADER
+  // ============================================================
 
   Widget _buildHeader(
     DashboardProvider dashboardProvider,
@@ -528,15 +445,17 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            subject?.name ?? 'Accueil',
-            style: TextStyle(
-              fontSize: widget.isMobile ? 16 : 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+          Expanded(
+            child: Text(
+              subject?.name ?? 'Accueil',
+              style: TextStyle(
+                fontSize: widget.isMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
           if (isLoading)
             const SizedBox(
               width: 20,
@@ -557,6 +476,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
               onPressed: () => _clearChat(dashboardProvider),
               tooltip: 'Effacer la discussion',
               color: AppColors.textSecondary,
+              splashRadius: 20,
             ),
           ],
         ],
@@ -564,75 +484,150 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
     );
   }
 
+  // ============================================================
+  //  EMPTY STATE
+  // ============================================================
+
   Widget _buildEmptyState(Subject? subject) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
-                  blurRadius: 20,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.2),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.chat_outlined,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Pose ta première question',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Sur ${subject?.name ?? "cette matière"}',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _QuickSuggestion(
+                  label: 'Explique-moi ce concept',
+                  onTap: () {
+                    _controller.text = 'Explique-moi ce concept';
+                    _sendMessage();
+                  },
+                ),
+                _QuickSuggestion(
+                  label: 'Donne-moi un exemple',
+                  onTap: () {
+                    _controller.text = 'Donne-moi un exemple';
+                    _sendMessage();
+                  },
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.chat_outlined,
-              color: Colors.white,
-              size: 40,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  //  TYPING INDICATOR
+  // ============================================================
+
+  Widget _buildTypingIndicator() {
+    if (!_isSending) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 8,
+            height: 8,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(width: 8),
           Text(
-            'Pose ta première question',
+            "L'assistant écrit...",
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+              fontSize: 12,
+              color: isDark ? AppColors.textWhite : AppColors.textSecondary,
+              fontStyle: FontStyle.italic,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Sur ${subject?.name ?? "cette matière"}',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              _QuickSuggestion(
-                label: 'Explique-moi ce concept',
-                onTap: () {
-                  _controller.text = 'Explique-moi ce concept';
-                  _sendMessage();
-                },
-              ),
-              _QuickSuggestion(
-                label: 'Donne-moi un exemple',
-                onTap: () {
-                  _controller.text = 'Donne-moi un exemple';
-                  _sendMessage();
-                },
-              ),
-            ],
           ),
         ],
       ),
     );
   }
+
+  // ============================================================
+  //  SCROLL TO BOTTOM BUTTON
+  // ============================================================
+
+  Widget _buildScrollToBottomButton() {
+    return GestureDetector(
+      onTap: _scrollToBottomInstant,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.arrow_downward_rounded,
+          color: Colors.white,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  //  SUGGESTIONS
+  // ============================================================
 
   Widget _buildSuggestions() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -687,6 +682,10 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       ),
     );
   }
+
+  // ============================================================
+  //  INPUT BAR
+  // ============================================================
 
   Widget _buildInputBar(DashboardProvider dashboardProvider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -772,11 +771,37 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat> {
       ),
     );
   }
+
+  // ============================================================
+  //  UTILITY
+  // ============================================================
+
+  List<_MessageGroup> _groupMessagesByDate(List<Message> messages) {
+    final groups = <_MessageGroup>[];
+    DateTime? currentDate;
+
+    for (final message in messages) {
+      final dateOnly = DateTime(
+        message.timestamp.year,
+        message.timestamp.month,
+        message.timestamp.day,
+      );
+
+      if (currentDate == null || dateOnly != currentDate) {
+        currentDate = dateOnly;
+        groups.add(_MessageGroup(date: dateOnly, messages: []));
+      }
+
+      groups.last.messages.add(message);
+    }
+
+    return groups;
+  }
 }
 
-// ======================================================================
-// Auxiliary classes
-// ======================================================================
+// ============================================================
+//  MESSAGE GROUP
+// ============================================================
 
 class _MessageGroup {
   _MessageGroup({
@@ -788,21 +813,23 @@ class _MessageGroup {
   final List<Message> messages;
 }
 
-// ======================================================================
-// Quick suggestion widget (clickable)
-// ======================================================================
+// ============================================================
+//  QUICK SUGGESTION WIDGET
+// ============================================================
 
 class _QuickSuggestion extends StatelessWidget {
   const _QuickSuggestion({
     required this.label,
     required this.onTap,
   });
+
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
