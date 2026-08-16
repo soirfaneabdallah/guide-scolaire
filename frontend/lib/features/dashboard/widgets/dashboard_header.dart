@@ -3,16 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-//import '../../../auth/providers/auth_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class DashboardHeader extends StatelessWidget {
-  const DashboardHeader({
-    super.key,
-    this.onMenuPressed,
-  });
-
-  final VoidCallback? onMenuPressed;
+  const DashboardHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +26,7 @@ class DashboardHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Menu hamburger (mobile)
-          if (onMenuPressed != null)
-            IconButton(
-              icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-              onPressed: onMenuPressed,
-            ),
-          // Logo (petit)
+          // ✅ LOGO (sans menu hamburger)
           Container(
             width: 32,
             height: 32,

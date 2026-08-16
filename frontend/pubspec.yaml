@@ -18,6 +18,9 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   highlight: ^0.7.0
+  file_picker: ^6.1.1  # ✅ AJOUTER
+  image_picker: ^1.0.4 # ✅ OPTIONNEL
+  url_launcher: ^6.2.1
 
   clipboard: ^0.1.3
 

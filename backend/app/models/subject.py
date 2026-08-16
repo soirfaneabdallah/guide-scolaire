@@ -8,6 +8,7 @@ from ..core.database import Base
 class Subject(Base):
     """Matière par défaut (pour tous les utilisateurs)"""
     __tablename__ = "subjects"
+    
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
@@ -19,7 +20,8 @@ class Subject(Base):
 
     # Relations
     user_subjects = relationship("UserSubject", back_populates="subject", cascade="all, delete-orphan")
-    chat_history = relationship("ChatHistory", back_populates="subject", cascade="all, delete-orphan")
+    books = relationship("Book", back_populates="subject", foreign_keys="Book.subject_id")
+    chat_history = relationship("ChatHistory", back_populates="subject", foreign_keys="ChatHistory.subject_id")
 
 
 class UserSubject(Base):

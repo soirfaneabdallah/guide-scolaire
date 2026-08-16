@@ -8,6 +8,7 @@ from ..core.database import Base
 class ChatHistory(Base):
     """Historique des conversations par utilisateur et matière"""
     __tablename__ = "chat_history"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
@@ -26,5 +27,5 @@ class ChatHistory(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relations
-    user = relationship("User", back_populates="chat_history")
-    subject = relationship("Subject", back_populates="chat_history")
+    user = relationship("User", back_populates="chat_history", foreign_keys=[user_id])
+    subject = relationship("Subject", back_populates="chat_history", foreign_keys=[subject_id])

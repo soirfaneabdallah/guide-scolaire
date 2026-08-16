@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../chat/domain/entities/message.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/utils/icon_utils.dart';
 
 // ============================================================
 //  MODÈLE MATIÈRE
@@ -247,6 +246,81 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  // ✅ AJOUTER loadSubjectsWithAuth ICI (à l'intérieur de la classe)
+  Future<void> loadSubjectsWithAuth() async {
+    if (apiClient == null) {
+      _loadMockSubjects();
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      print('📚 Chargement des matières avec auth...');
+      final response = await apiClient!.get('/subjects/me');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final List<dynamic> defaultSubjects = data['default_subjects'] ?? [];
+        final List<dynamic> customSubjects = data['custom_subjects'] ?? [];
+
+        List<Subject> loadedSubjects = [];
+
+        for (var item in defaultSubjects) {
+          loadedSubjects.add(Subject.fromJson(item));
+        }
+
+        for (var item in customSubjects) {
+          final subjectData = item['subject'] as Map<String, dynamic>;
+          loadedSubjects.add(Subject(
+            id: subjectData['id'] ?? 0,
+            name: item['custom_name'] ?? subjectData['name'] ?? '',
+            slug: subjectData['slug'] ?? subjectData['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+            icon: item['custom_icon'] ?? subjectData['icon'],
+            color: item['custom_color'] ?? subjectData['color'],
+            isDefault: false,
+            isActive: item['is_active'] ?? true,
+          ));
+        }
+
+        _subjects = loadedSubjects;
+
+        _subjectChats = {
+          for (var s in _subjects) _normalizeSlug(s.slug): [],
+        };
+
+        if (_selectedSubjectSlug.isEmpty && _subjects.isNotEmpty) {
+          _selectedSubjectSlug = _subjects.first.slug;
+        }
+
+        _isLoading = false;
+        notifyListeners();
+        print('✅ ${_subjects.length} matières chargées');
+      } else {
+        _error = 'Erreur lors du chargement des matières';
+        _isLoading = false;
+        notifyListeners();
+      }
+    } on DioException catch (e) {
+      print('❌ Erreur chargement matières: ${e.response?.statusCode}');
+      if (e.response?.statusCode == 401) {
+        _error = 'Session expirée, veuillez vous reconnecter';
+      } else {
+        _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      }
+      _isLoading = false;
+      notifyListeners();
+      _loadMockSubjects();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      _loadMockSubjects();
+    }
+  }
+
   void _loadMockSubjects() {
     _subjects = [
       Subject(id: 1, name: 'Mathématiques', slug: 'mathematiques', icon: '📐', color: '#4CAF50', isDefault: true),
@@ -334,14 +408,12 @@ class DashboardProvider extends ChangeNotifier {
   //  GESTION DES MATIÈRES (CRUD)
   // ============================================================
 
-  // ✅ CRÉER UNE NOUVELLE MATIÈRE
   Future<bool> createSubject({
     required String name,
     String? icon,
     String? color,
   }) async {
     if (apiClient == null) {
-      // Mode hors ligne
       final newSubject = Subject(
         id: _subjects.length + 100,
         name: name,
@@ -395,7 +467,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ AJOUTER UNE MATIÈRE EXISTANTE À L'UTILISATEUR
   Future<bool> addExistingSubjectToUser(int subjectId) async {
     if (apiClient == null) return false;
 
@@ -433,7 +504,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ MODIFIER UNE MATIÈRE
   Future<bool> updateSubject({
     required int subjectId,
     String? name,
@@ -499,7 +569,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ SUPPRIMER UNE MATIÈRE
   Future<bool> deleteSubject(int subjectId) async {
     if (apiClient == null) {
       final index = _subjects.indexWhere((s) => s.id == subjectId);

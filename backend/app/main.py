@@ -8,7 +8,15 @@ from .api.v1.routes.auth import router as auth_router
 from .api.v1.routes.chat import router as chat_router
 from .repositories.subject_repository import SubjectRepository
 from .api.v1.routes.subjects import router as subjects_router
+from .api.v1.routes.books import router as books_router
+import os
+from fastapi.staticfiles import StaticFiles
 
+
+
+# Créer les dossiers pour les fichiers
+os.makedirs("uploads/covers", exist_ok=True)
+os.makedirs("uploads/pdfs", exist_ok=True)
 # Création des tables en base de données
 Base.metadata.create_all(bind=engine)
 
@@ -27,12 +35,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Routes
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(subjects_router, prefix="/api/v1")
+app.include_router(books_router, prefix="/api/v1")  # ✅ DOIT ÊTRE PRÉSENT
 
 @app.get("/")
 def root():
