@@ -1,6 +1,7 @@
 // frontend/lib/features/home/widgets/home_footer.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/app_colors.dart';
 
 class HomeFooter extends StatelessWidget {
@@ -48,22 +49,14 @@ class HomeFooter extends StatelessWidget {
         // Logo et description
         Row(
           children: [
-            Container(
+            // ✅ Logo SVG
+            SvgPicture.asset(
+              'assets/images/logo.svg',
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
-                child: Text(
-                  '📚',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
               ),
             ),
             const SizedBox(width: 12),
