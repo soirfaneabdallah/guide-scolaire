@@ -1,6 +1,7 @@
 // frontend/lib/features/auth/presentation/screens/login_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -23,6 +24,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _logoScaleAnimation;
 
   @override
   void initState() {
@@ -51,6 +53,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeOut,
+      ),
+    );
+
+    _logoScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.elasticOut,
       ),
     );
 
@@ -135,10 +144,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
           return Stack(
             children: [
-              // Fond avec gradient animé
               _buildBackground(),
-              
-              // Contenu principal
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
@@ -212,10 +218,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo animé
+                // Logo SVG sans bulle
                 _buildAnimatedLogo(),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 
                 // Titre
                 const Text(
@@ -247,7 +253,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 
                 const SizedBox(height: 8),
                 
-                // Options supplémentaires
+                // Options
                 _buildOptionsRow(),
                 
                 const SizedBox(height: 24),
@@ -267,7 +273,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 
                 const SizedBox(height: 8),
                 
-                // Lien retour à l'accueil
+                // Lien retour
                 _buildBackToHomeLink(),
               ],
             ),
@@ -277,43 +283,35 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
+  // ============================================================
+  //  LOGO SANS BULLE - UNIQUEMENT LE SVG EN BLEU
+  // ============================================================
+
   Widget _buildAnimatedLogo() {
     return TweenAnimationBuilder(
-      tween: Tween<double>(begin: 0.8, end: 1),
+      tween: Tween<double>(begin: 0.5, end: 1),
       duration: const Duration(milliseconds: 600),
       curve: Curves.elasticOut,
       builder: (context, double scale, child) {
         return Transform.scale(
           scale: scale,
-          child: Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                '📚',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 44,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+          child: SvgPicture.asset(
+            'assets/images/logo.svg',
+            width: 80,
+            height: 80,
+            colorFilter: const ColorFilter.mode(
+              AppColors.primary,
+              BlendMode.srcIn,
             ),
           ),
         );
       },
     );
   }
+
+  // ============================================================
+  //  CHAMPS DE SAISIE
+  // ============================================================
 
   Widget _buildEmailField() {
     return TextFormField(
@@ -391,6 +389,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
+  // ============================================================
+  //  OPTIONS
+  // ============================================================
+
   Widget _buildOptionsRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -420,7 +422,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         ),
         TextButton(
           onPressed: () {
-            // TODO: Mot de passe oublié
+            // Mot de passe oublié
           },
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primary,
@@ -436,6 +438,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ],
     );
   }
+
+  // ============================================================
+  //  BOUTON DE CONNEXION
+  // ============================================================
 
   Widget _buildLoginButton(AuthProvider authProvider) {
     return SizedBox(
@@ -471,6 +477,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
     );
   }
+
+  // ============================================================
+  //  SÉPARATEUR ET LIENS
+  // ============================================================
 
   Widget _buildDivider() {
     return Row(

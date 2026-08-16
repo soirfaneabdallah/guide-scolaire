@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     BASE_URL: str = "http://localhost:8000"  # URL de base de l'API
     
     # Application
-    APP_NAME: str = "Guide Scolaire Comores"
+    APP_NAME: str = "E-learningAI"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     ALLOWED_ORIGINS: list = ["*"]  # À restreindre en prod

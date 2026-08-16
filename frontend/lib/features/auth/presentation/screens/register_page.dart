@@ -1,6 +1,7 @@
 // frontend/lib/features/auth/presentation/screens/register_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -24,10 +25,12 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   String _selectedLevel = '6ème';
+  bool _acceptTerms = false;
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _logoScaleAnimation;
 
   final List<String> _levels = [
     '6ème', '5ème', '4ème', '3ème',
@@ -63,6 +66,13 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
       ),
     );
 
+    _logoScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
     _animationController.forward();
   }
 
@@ -80,6 +90,20 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!_acceptTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez accepter les conditions d\'utilisation'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+      );
+      return;
+    }
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
     final success = await authProvider.register(
@@ -92,16 +116,15 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('🎉 Compte créé avec succès !'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
         ),
       );
-      // Rediriger vers la page de connexion
       Navigator.pushNamed(context, AppRoutes.login);
     } else if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,8 +132,8 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           content: Text(authProvider.error ?? 'Erreur lors de l\'inscription'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
         ),
       );
@@ -128,10 +151,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
         builder: (context, authProvider, child) {
           return Stack(
             children: [
-              // Fond avec gradient
               _buildBackground(),
-              
-              // Contenu principal
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
@@ -178,7 +198,7 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo
+                // Logo SVG sans bulle
                 _buildAnimatedLogo(),
                 
                 const SizedBox(height: 24),
@@ -206,13 +226,9 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 // Nom et Prénom
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildFirstNameField(),
-                    ),
+                    Expanded(child: _buildFirstNameField()),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildLastNameField(),
-                    ),
+                    Expanded(child: _buildLastNameField()),
                   ],
                 ),
                 
@@ -236,7 +252,12 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 // Confirmation du mot de passe
                 _buildConfirmPasswordField(),
                 
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
+                
+                // Conditions générales
+                _buildTermsCheckbox(),
+                
+                const SizedBox(height: 16),
                 
                 // Bouton d'inscription
                 _buildRegisterButton(authProvider),
@@ -245,11 +266,6 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
                 
                 // Séparateur
                 _buildDivider(),
-                
-                const SizedBox(height: 16),
-                
-                // Boutons d'inscription sociale
-                _buildSocialButtons(),
                 
                 const SizedBox(height: 16),
                 
@@ -268,43 +284,35 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     );
   }
 
+  // ============================================================
+  //  LOGO SANS BULLE - UNIQUEMENT LE SVG EN BLEU
+  // ============================================================
+
   Widget _buildAnimatedLogo() {
     return TweenAnimationBuilder(
-      tween: Tween<double>(begin: 0.8, end: 1),
+      tween: Tween<double>(begin: 0.5, end: 1),
       duration: const Duration(milliseconds: 600),
       curve: Curves.elasticOut,
       builder: (context, double scale, child) {
         return Transform.scale(
           scale: scale,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                '📚',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+          child: SvgPicture.asset(
+            'assets/images/logo.svg',
+            width: 70,
+            height: 70,
+            colorFilter: const ColorFilter.mode(
+              AppColors.primary,
+              BlendMode.srcIn,
             ),
           ),
         );
       },
     );
   }
+
+  // ============================================================
+  //  CHAMPS DE SAISIE
+  // ============================================================
 
   Widget _buildFirstNameField() {
     return TextFormField(
@@ -534,6 +542,61 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     );
   }
 
+  // ============================================================
+  //  CONDITIONS GÉNÉRALES
+  // ============================================================
+
+  Widget _buildTermsCheckbox() {
+    return Row(
+      children: [
+        Checkbox(
+          value: _acceptTerms,
+          onChanged: (value) {
+            setState(() {
+              _acceptTerms = value ?? false;
+            });
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          activeColor: AppColors.primary,
+        ),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+              children: [
+                const TextSpan(text: 'J\'accepte les '),
+                TextSpan(
+                  text: 'conditions d\'utilisation',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const TextSpan(text: ' et la '),
+                TextSpan(
+                  text: 'politique de confidentialité',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  //  BOUTON D'INSCRIPTION
+  // ============================================================
+
   Widget _buildRegisterButton(AuthProvider authProvider) {
     return SizedBox(
       width: double.infinity,
@@ -569,6 +632,10 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
     );
   }
 
+  // ============================================================
+  //  SÉPARATEUR ET LIENS
+  // ============================================================
+
   Widget _buildDivider() {
     return Row(
       children: [
@@ -595,96 +662,6 @@ class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderSt
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return Column(
-      children: [
-        // Google
-        _buildSocialButton(
-          icon: Icons.g_mobiledata,
-          label: 'Google',
-          color: Colors.red[700]!,
-          onPressed: () {
-            // TODO: Implémenter l'inscription via Google
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Inscription avec Google bientôt disponible'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        // Facebook
-        _buildSocialButton(
-          icon: Icons.facebook,
-          label: 'Facebook',
-          color: Color(0xFF1877F2),
-          onPressed: () {
-            // TODO: Implémenter l'inscription via Facebook
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Inscription avec Facebook bientôt disponible'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        // Apple
-        _buildSocialButton(
-          icon: Icons.apple,
-          label: 'Apple',
-          color: Colors.grey[800]!,
-          onPressed: () {
-            // TODO: Implémenter l'inscription via Apple
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Inscription avec Apple bientôt disponible'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withOpacity(0.3)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 12),
-            Text(
-              'Continuer avec $label',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
