@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 
 class AuthProvider extends ChangeNotifier {
-  // Constructeur sans paramètre (ApiClient sera injecté plus tard)
   AuthProvider();
 
   ApiClient? _apiClient;
@@ -19,6 +18,14 @@ class AuthProvider extends ChangeNotifier {
   String? _userName;
   String? _userLevel;
   int? _userId;
+  String? _userAvatar;
+  String? _userBio;
+  String? _userSchool;
+  String? _userPhone;
+
+  // ============================================================
+  //  GETTERS
+  // ============================================================
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
@@ -26,21 +33,50 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   String? get token => _token;
   String? get userEmail => _userEmail;
-  String? get userName => _userName;
-  String? get userLevel => _userLevel;
+  String? get userName => _userName ?? 'Élève';
+  String? get userLevel => _userLevel ?? 'Collège';
   int? get userId => _userId;
+  String? get userAvatar => _userAvatar;
+  String? get userBio => _userBio;
+  String? get userSchool => _userSchool;
+  String? get userPhone => _userPhone;
 
-  // 🔧 Méthode pour injecter ApiClient après la création
+  // ✅ GETTER POUR LA COMPATIBILITÉ AVEC L'ANCIEN CODE
+  User? get user {
+    if (_userId == null) return null;
+    return User(
+      id: _userId!,
+      email: _userEmail ?? '',
+      firstName: _userName?.split(' ').first ?? '',
+      lastName: _userName?.split(' ').skip(1).join(' ') ?? '',
+      fullName: _userName,
+      level: _userLevel,
+      avatarUrl: _userAvatar,
+      bio: _userBio,
+      school: _userSchool,
+      phoneNumber: _userPhone,
+      isActive: true,
+      isVerified: false,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  // ============================================================
+  //  INITIALISATION
+  // ============================================================
+
   void setApiClient(ApiClient apiClient) {
     _apiClient = apiClient;
   }
 
-  // 🔧 Méthode d'initialisation
   Future<void> init() async {
-    // TODO: Charger la session depuis le stockage local (SharedPreferences)
     _isInitialized = true;
     notifyListeners();
   }
+
+  // ============================================================
+  //  LOGIN
+  // ============================================================
 
   Future<bool> login(String email, String password) async {
     if (_apiClient == null) {
@@ -62,12 +98,28 @@ class AuthProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = response.data;
         _token = data['access_token'];
-        _userEmail = email;
         _isAuthenticated = true;
+
+        // ✅ Récupérer l'utilisateur de la réponse
+        if (data['user'] != null) {
+          final user = data['user'];
+          _userName = user['full_name'] ?? 
+                      '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+          _userEmail = user['email'] ?? email;
+          _userLevel = user['level'] ?? 'Collège';
+          _userId = user['id'];
+          _userAvatar = user['avatar_url'];
+          _userBio = user['bio'];
+          _userSchool = user['school'];
+          _userPhone = user['phone_number'];
+          
+          print('✅ [AuthProvider] Utilisateur chargé: $_userName');
+        } else {
+          await _fetchUserProfile();
+        }
+
         _isLoading = false;
         notifyListeners();
-
-        await _fetchUserProfile();
         return true;
       } else {
         _error = 'Erreur de connexion';
@@ -89,21 +141,31 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _fetchUserProfile() async {
-    if (_apiClient == null) return;
+    if (_apiClient == null || _token == null) return;
 
     try {
       final response = await _apiClient!.get('/auth/me');
       if (response.statusCode == 200) {
         final data = response.data;
-        _userName = '${data['first_name']} ${data['last_name']}';
-        _userLevel = data['level'];
+        _userName = data['full_name'] ?? 
+                    '${data['first_name'] ?? ''} ${data['last_name'] ?? ''}'.trim();
+        _userEmail = data['email'];
+        _userLevel = data['level'] ?? 'Collège';
         _userId = data['id'];
+        _userAvatar = data['avatar_url'];
+        _userBio = data['bio'];
+        _userSchool = data['school'];
+        _userPhone = data['phone_number'];
         notifyListeners();
       }
     } catch (e) {
-      // On garde les valeurs par défaut
+      print('❌ Erreur chargement profil: $e');
     }
   }
+
+  // ============================================================
+  //  REGISTER
+  // ============================================================
 
   Future<bool> register({
     required String email,
@@ -141,7 +203,7 @@ class AuthProvider extends ChangeNotifier {
       if (response.statusCode == 201) {
         _isLoading = false;
         notifyListeners();
-        return true;
+        return await login(email, password);
       } else {
         _error = 'Erreur lors de l\'inscription';
         _isLoading = false;
@@ -161,6 +223,91 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  //  ✅ UPDATE PROFILE (AJOUTÉ)
+  // ============================================================
+
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? level,
+    String? school,
+    String? phoneNumber,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    if (_apiClient == null) {
+      _error = 'ApiClient non initialisé';
+      notifyListeners();
+      return false;
+    }
+
+    if (_token == null) {
+      _error = 'Vous devez être connecté';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final data = {
+        if (firstName != null) 'first_name': firstName,
+        if (lastName != null) 'last_name': lastName,
+        if (level != null) 'level': level,
+        if (school != null) 'school': school,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (bio != null) 'bio': bio,
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
+      };
+
+      final response = await _apiClient!.put(
+        '/auth/me',
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        final userData = response.data;
+        
+        // ✅ Mettre à jour les données locales
+        _userName = userData['full_name'] ?? 
+                    '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}'.trim();
+        _userEmail = userData['email'];
+        _userLevel = userData['level'] ?? 'Collège';
+        _userId = userData['id'];
+        _userAvatar = userData['avatar_url'];
+        _userBio = userData['bio'];
+        _userSchool = userData['school'];
+        _userPhone = userData['phone_number'];
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Erreur lors de la mise à jour du profil';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      _error = e.response?.data['detail'] ?? 'Erreur réseau';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ============================================================
+  //  LOGOUT
+  // ============================================================
+
   Future<void> logout() async {
     _isAuthenticated = false;
     _token = null;
@@ -168,6 +315,10 @@ class AuthProvider extends ChangeNotifier {
     _userName = null;
     _userLevel = null;
     _userId = null;
+    _userAvatar = null;
+    _userBio = null;
+    _userSchool = null;
+    _userPhone = null;
     notifyListeners();
   }
 
@@ -175,4 +326,44 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+}
+
+// ============================================================
+//  MODÈLE USER (POUR COMPATIBILITÉ)
+// ============================================================
+
+class User {
+  final int id;
+  final String email;
+  final String firstName;
+  final String lastName;
+  final String? fullName;
+  final String? level;
+  final String? avatarUrl;
+  final String? bio;
+  final String? school;
+  final String? phoneNumber;
+  final String? role;
+  final bool isActive;
+  final bool isVerified;
+  final DateTime createdAt;
+  final DateTime? lastLogin;
+
+  User({
+    required this.id,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+    this.fullName,
+    this.level,
+    this.avatarUrl,
+    this.bio,
+    this.school,
+    this.phoneNumber,
+    this.role,
+    this.isActive = true,
+    this.isVerified = false,
+    required this.createdAt,
+    this.lastLogin,
+  });
 }

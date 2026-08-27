@@ -14,7 +14,7 @@ class QwenLLM:
         model_name: str = "Qwen/Qwen2.5-0.5B-Instruct",
         device: Optional[str] = None,
         max_length: int = 2048,
-        temperature: float = 0.3,  # 👈 Réduire pour plus de cohérence
+        temperature: float = 0.3,  
         top_p: float = 0.9,
     ):
         self.model_name = model_name
@@ -27,7 +27,7 @@ class QwenLLM:
         else:
             self.device = device
         
-        logger.info(f"📦 Chargement du modèle {model_name} sur {self.device}...")
+        logger.info(f"Chargement du modèle {model_name} sur {self.device}...")
         
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
@@ -50,12 +50,12 @@ class QwenLLM:
             self.model = self.model.to(self.device)
         
         self.model.eval()
-        logger.info(f"✅ Modèle chargé avec succès !")
+        logger.info(f"Modèle chargé avec succès !")
     
     def generate(
         self,
         prompt: str,
-        max_new_tokens: int = 256,  # 👈 Réduire
+        max_new_tokens: int = 256,  #  Réduire
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
     ) -> str:
