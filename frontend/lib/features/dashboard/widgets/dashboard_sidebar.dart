@@ -54,12 +54,6 @@ class DashboardSidebar extends StatelessWidget {
             child: _buildSubjectsList(isDark, provider, subjects, context, compact),
           ),
           _buildFixedBottomMenu(isDark, provider, compact),
-          // ------------------------------------------------------
-          // Boîte profil : widget à part (sidebar_profile.dart),
-          // toujours rendue ici, sans "if (!compact)" ni condition
-          // de largeur -- seul son style interne s'adapte via
-          // isCompact, jamais sa présence.
-          // ------------------------------------------------------
           SidebarProfile(isCompact: compact),
         ],
       ),
@@ -165,6 +159,7 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 
+  // ✅ CORRECTION : Ajouter un ScrollController
   Widget _buildSubjectsList(
     bool isDark,
     DashboardProvider provider,
@@ -206,10 +201,15 @@ class DashboardSidebar extends StatelessWidget {
             );
     }
 
+    // ✅ AJOUTER UN SCROLLCONTROLLER POUR LE SCROLLBAR
+    final ScrollController scrollController = ScrollController();
+
     return Scrollbar(
+      controller: scrollController, // ✅ Attacher le controller
       thumbVisibility: false,
       radius: const Radius.circular(8),
       child: ListView.builder(
+        controller: scrollController,
         padding: EdgeInsets.symmetric(vertical: compact ? 2 : 4),
         itemCount: subjects.length,
         itemBuilder: (context, index) {

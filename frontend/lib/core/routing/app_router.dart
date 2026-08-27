@@ -10,6 +10,7 @@ import '../../features/chat/repositories/chat_repository.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../features/profile/presentation/screens/profile_edit_screen.dart';  // ✅ AJOUTER
 import '../network/api_client.dart';
 import 'app_routes.dart';
 
@@ -42,34 +43,40 @@ class AppRouter {
           (_) => RegisterPage(),
         );
 
+      // ✅ AJOUTER LA ROUTE PROFIL EDIT
+      case AppRoutes.profileEdit:
+        return _slideRoute(
+          settings,
+          (_) => const ProfileEditScreen(),
+        );
+
       // frontend/lib/core/routing/app_router.dart
+      case AppRoutes.chat:
+        final args = settings.arguments as Map<String, dynamic>?;
+        final initialQuestion = args?['question'] as String?;
+        final subjectId = args?['subjectId'] as int? ?? 1;
 
-  case AppRoutes.chat:
-    final args = settings.arguments as Map<String, dynamic>?;
-    final initialQuestion = args?['question'] as String?;
-    final subjectId = args?['subjectId'] as int? ?? 1;  // 👈 ID par défaut (Mathématiques)
-
-    return _slideRoute(
-      settings,
-      (context) {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final apiClient = Provider.of<ApiClient>(context, listen: false);
-        final chatRepository = ChatRepository(apiClient: apiClient);
-        
-        final chatProvider = ChatProvider(
-          chatRepository: chatRepository,
-          authProvider: authProvider,
-          subjectId: subjectId,  // 👈 Uniquement l'ID
+        return _slideRoute(
+          settings,
+          (context) {
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final apiClient = Provider.of<ApiClient>(context, listen: false);
+            final chatRepository = ChatRepository(apiClient: apiClient);
+            
+            final chatProvider = ChatProvider(
+              chatRepository: chatRepository,
+              authProvider: authProvider,
+              subjectId: subjectId,
+            );
+            
+            return Provider<ChatProvider>(
+              create: (_) => chatProvider,
+              child: ChatScreen(
+                initialQuestion: initialQuestion,
+              ),
+            );
+          },
         );
-        
-        return Provider<ChatProvider>(
-          create: (_) => chatProvider,
-          child: ChatScreen(
-            initialQuestion: initialQuestion,
-          ),
-        );
-      },
-    );
 
       case String route when route.startsWith('/course/'):
         final id = route.split('/').last;

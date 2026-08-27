@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/routing/app_routes.dart';
 
 class SidebarProfile extends StatefulWidget {
   const SidebarProfile({
@@ -362,6 +364,7 @@ class _SidebarProfileState extends State<SidebarProfile>
                     subtitle: 'Voir et modifier mon profil',
                     onTap: () {
                       Navigator.pop(context);
+                      AppRouter.pushNamed(context, AppRoutes.profileEdit);
                     },
                     isDark: isDark,
                   ),

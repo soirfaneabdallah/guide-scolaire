@@ -38,7 +38,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   void _loadUserData() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     
-    // ✅ Utiliser les getters de AuthProvider
+    // Utiliser les getters de AuthProvider
     final nameParts = auth.userName?.split(' ') ?? [];
     _firstNameController.text = nameParts.isNotEmpty ? nameParts[0] : '';
     _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
@@ -133,8 +133,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 items: const [
                   '6ème', '5ème', '4ème', '3ème',
                   'Seconde', 'Première', 'Terminale',
-                  'Licence 1', 'Licence 2', 'Licence 3',
-                  'Master 1', 'Master 2',
+                  //'Licence 1', 'Licence 2', 'Licence 3',
+                  //'Master 1', 'Master 2',
                 ],
                 onChanged: (value) {
                   _levelController.text = value ?? '';
