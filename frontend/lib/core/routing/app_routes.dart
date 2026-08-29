@@ -7,8 +7,11 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String forgotPassword = '/forgot-password';
   static const String profile = '/profile';
-  static const String profileEdit = '/profile/edit';  
-  static const String settings = '/settings';
+  static const String profileEdit = '/profile/edit';
+  static const String settings = '/settings';  // ✅ AJOUTER
+  static const String settingsGeneral = '/settings/general';
+  static const String settingsNotifications = '/settings/notifications';
+  static const String settingsPrivacy = '/settings/privacy';
   static const String courses = '/courses';
   static const String exercises = '/exercises';
   static const String handwriting = '/handwriting';

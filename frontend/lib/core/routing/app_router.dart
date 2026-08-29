@@ -10,7 +10,8 @@ import '../../features/chat/repositories/chat_repository.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
-import '../../features/profile/presentation/screens/profile_edit_screen.dart';  // ✅ AJOUTER
+import '../../features/profile/presentation/screens/profile_edit_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';  // ✅ AJOUTER
 import '../network/api_client.dart';
 import 'app_routes.dart';
 
@@ -22,35 +23,40 @@ class AppRouter {
       case AppRoutes.home:
         return _fadeRoute(
           settings,
-          (_) => HomeScreen(),
+          (_) =>  HomeScreen(),
         );
 
       case AppRoutes.dashboard:
         return _fadeRoute(
           settings,
-          (_) => DashboardScreen(),
+          (_) => const DashboardScreen(),
         );
 
       case AppRoutes.login:
         return _fadeRoute(
           settings,
-          (_) => LoginPage(),
+          (_) => const LoginPage(),
         );
 
       case AppRoutes.register:
         return _fadeRoute(
           settings,
-          (_) => RegisterPage(),
+          (_) => const RegisterPage(),
         );
 
-      // ✅ AJOUTER LA ROUTE PROFIL EDIT
       case AppRoutes.profileEdit:
         return _slideRoute(
           settings,
           (_) => const ProfileEditScreen(),
         );
 
-      // frontend/lib/core/routing/app_router.dart
+      // ✅ AJOUTER LA ROUTE SETTINGS
+      case AppRoutes.settings:
+        return _slideRoute(
+          settings,
+          (_) => const SettingsScreen(),
+        );
+
       case AppRoutes.chat:
         final args = settings.arguments as Map<String, dynamic>?;
         final initialQuestion = args?['question'] as String?;

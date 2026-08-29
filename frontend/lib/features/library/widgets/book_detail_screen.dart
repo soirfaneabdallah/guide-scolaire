@@ -6,6 +6,7 @@ import '../models/book.dart';
 import '../models/book_comment.dart';
 import '../providers/library_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/config/environment.dart';
 
 class BookDetailScreen extends StatefulWidget {
   const BookDetailScreen({
@@ -39,14 +40,6 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     super.initState();
     _isLiked = widget.book.isLiked;
 
-    // ------------------------------------------------------------
-    // CORRECTIF : le provider notifie ses changements via
-    // notifyListeners(), mais cet écran ne les recevait jamais
-    // car il lisait juste `widget.provider.comments` sans jamais
-    // s'abonner. Résultat : le premier chargement restait invisible
-    // tant qu'un setState() n'était pas déclenché ailleurs (ex. en
-    // postant un commentaire). On s'abonne donc explicitement ici.
-    // ------------------------------------------------------------
     widget.provider.addListener(_onProviderChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -69,10 +62,6 @@ class _BookDetailScreenState extends State<BookDetailScreen>
 
   Future<void> _loadComments() async {
     await widget.provider.loadComments(widget.book.id);
-    // Filet de sécurité : même si addListener() ci-dessus suffit
-    // normalement, on force aussi un rebuild local ici pour être
-    // certain que le premier affichage n'attend jamais une action
-    // de l'utilisateur.
     if (mounted) setState(() {});
   }
 
@@ -80,7 +69,6 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     setState(() {
       _commentLikes[commentId] = !(_commentLikes[commentId] ?? false);
     });
-    // TODO: Appeler l'API pour liker le commentaire
   }
 
   void _startReply(int commentId, String userName) {
@@ -489,16 +477,7 @@ class _BookDetailScreenState extends State<BookDetailScreen>
   }
 
   // ============================================================
-  //  ARBRE DE COMMENTAIRES (profondeur illimitée)
-  // ============================================================
-  //
-  // La ligne de connexion est obtenue simplement en donnant une
-  // bordure gauche au conteneur qui enveloppe les réponses d'un
-  // commentaire : chaque niveau de profondeur ajoute donc sa propre
-  // bordure, ce qui crée naturellement une ligne continue par
-  // niveau, sans calcul de hauteur manuel (contrairement à la
-  // version précédente basée sur IntrinsicHeight, qui pouvait
-  // donner une ligne de hauteur nulle et donc invisible).
+  //  ARBRE DE COMMENTAIRES
   // ============================================================
 
   Widget _buildCommentNode(BookComment comment, int depth, bool isDark) {
@@ -507,6 +486,12 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     final isReplying = _replyingTo == comment.id;
     final hasReplies = comment.replies.isNotEmpty;
     final isCollapsed = _collapsedThreads.contains(comment.id);
+
+    // ✅ Construire l'URL de l'avatar du commentateur
+    String? avatarUrl;
+    if (comment.userAvatar != null && comment.userAvatar!.isNotEmpty) {
+      avatarUrl = '${EnvironmentConfig.baseUrl}${comment.userAvatar}';
+    }
 
     final card = Container(
       padding: const EdgeInsets.all(14),
@@ -530,14 +515,24 @@ class _BookDetailScreenState extends State<BookDetailScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Text(
-                  comment.userName.isNotEmpty ? comment.userName[0].toUpperCase() : '?',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
+              // ✅ Avatar avec image réelle si disponible
+              avatarUrl != null
+                  ? CircleAvatar(
+                      radius: 16,
+                      backgroundImage: NetworkImage(avatarUrl),
+                      onBackgroundImageError: (_, __) {
+                        // Fallback si l'image ne charge pas
+                      },
+                      child: null,
+                    )
+                  : CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary,
+                      child: Text(
+                        comment.userName.isNotEmpty ? comment.userName[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -885,9 +880,6 @@ class _BookDetailScreenState extends State<BookDetailScreen>
           _replyingTo = null;
           _replyToName = null;
           _isSubmitting = false;
-          // On déplie automatiquement le fil dans lequel on vient
-          // de répondre, pour que la nouvelle réponse soit visible
-          // immédiatement sans action supplémentaire.
           _collapsedThreads.remove(parentId);
         });
         await _loadComments();

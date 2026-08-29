@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/config/environment.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/routing/app_routes.dart';
@@ -55,6 +56,12 @@ class _SidebarProfileState extends State<SidebarProfile>
     final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
     final compact = widget.isCompact;
 
+    // ✅ Construire l'URL complète de l'avatar
+    String? avatarUrl;
+    if (auth.userAvatar != null && auth.userAvatar!.isNotEmpty) {
+      avatarUrl = '${EnvironmentConfig.baseUrl}${auth.userAvatar}';
+    }
+
     // ✅ EN MODE COMPACT : Afficher uniquement l'avatar (toujours visible)
     if (compact) {
       return Container(
@@ -79,8 +86,8 @@ class _SidebarProfileState extends State<SidebarProfile>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
                   shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.primary.withOpacity(0.3),
@@ -88,17 +95,28 @@ class _SidebarProfileState extends State<SidebarProfile>
                       offset: const Offset(0, 2),
                     ),
                   ],
+                  image: avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(avatarUrl),
+                          fit: BoxFit.cover,
+                          onError: (exception, stackTrace) {
+                            print('❌ Erreur chargement avatar: $exception');
+                          },
+                        )
+                      : null,
                 ),
-                child: Center(
-                  child: Text(
-                    userInitial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                child: avatarUrl == null
+                    ? Center(
+                        child: Text(
+                          userInitial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ),
           ),
@@ -157,13 +175,13 @@ class _SidebarProfileState extends State<SidebarProfile>
             ),
             child: Row(
               children: [
-                // Avatar
+                // ✅ Avatar avec image réelle si disponible
                 Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
                     shape: BoxShape.circle,
+                    gradient: avatarUrl == null ? AppColors.primaryGradient : null,
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primary.withOpacity(0.3),
@@ -171,17 +189,28 @@ class _SidebarProfileState extends State<SidebarProfile>
                         offset: const Offset(0, 2),
                       ),
                     ],
+                    image: avatarUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(avatarUrl),
+                            fit: BoxFit.cover,
+                            onError: (exception, stackTrace) {
+                              print('❌ Erreur chargement avatar: $exception');
+                            },
+                          )
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      userInitial,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  child: avatarUrl == null
+                      ? Center(
+                          child: Text(
+                            userInitial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 10),
                 // Infos utilisateur
@@ -242,8 +271,13 @@ class _SidebarProfileState extends State<SidebarProfile>
   }
 
   void _showProfileMenu(BuildContext context, AuthProvider auth) {
-  
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // ✅ Construire l'URL complète de l'avatar pour le menu
+    String? avatarUrl;
+    if (auth.userAvatar != null && auth.userAvatar!.isNotEmpty) {
+      avatarUrl = '${EnvironmentConfig.baseUrl}${auth.userAvatar}';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -275,17 +309,18 @@ class _SidebarProfileState extends State<SidebarProfile>
                     ),
                   ),
                   
-                  // Header
+                  // Header avec avatar réel
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Row(
                       children: [
+                        // ✅ Avatar avec image réelle
                         Container(
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
                             shape: BoxShape.circle,
+                            gradient: avatarUrl == null ? AppColors.primaryGradient : null,
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.primary.withOpacity(0.3),
@@ -293,19 +328,30 @@ class _SidebarProfileState extends State<SidebarProfile>
                                 offset: const Offset(0, 4),
                               ),
                             ],
+                            image: avatarUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(avatarUrl),
+                                    fit: BoxFit.cover,
+                                    onError: (exception, stackTrace) {
+                                      print('❌ Erreur chargement avatar: $exception');
+                                    },
+                                  )
+                                : null,
                           ),
-                          child: Center(
-                            child: Text(
-                              auth.userName?.isNotEmpty == true
-                                  ? auth.userName![0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          child: avatarUrl == null
+                              ? Center(
+                                  child: Text(
+                                    auth.userName?.isNotEmpty == true
+                                        ? auth.userName![0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -320,7 +366,6 @@ class _SidebarProfileState extends State<SidebarProfile>
                                   color: isDark ? AppColors.textWhite : AppColors.textPrimary,
                                 ),
                               ),
-                              
                               const SizedBox(height: 2),
                               Text(
                                 auth.userEmail ?? 'email@exemple.com',
@@ -374,6 +419,7 @@ class _SidebarProfileState extends State<SidebarProfile>
                     subtitle: 'Préférences de l\'application',
                     onTap: () {
                       Navigator.pop(context);
+                      AppRouter.pushNamed(context, AppRoutes.settings);
                     },
                     isDark: isDark,
                   ),

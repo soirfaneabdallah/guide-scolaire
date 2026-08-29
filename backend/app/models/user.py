@@ -1,8 +1,9 @@
 # backend/app/models/user.py
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
+from sqlalchemy import JSON
 from app.core.database import Base
 import json
 
@@ -21,7 +22,7 @@ class User(Base):
     school = Column(String(255), nullable=True)
     phone_number = Column(String(20), nullable=True)
     birth_date = Column(DateTime, nullable=True)
-    preferences = Column(Text, nullable=True)  # ✅ Stocké en JSON
+    preferences: Mapped[dict] = mapped_column(JSON, default=dict)
     role = Column(String(50), default="student")  # ✅ en minuscules
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)

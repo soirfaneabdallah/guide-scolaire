@@ -3,9 +3,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/config/environment.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../widgets/profile_image_picker.dart';
 
@@ -38,7 +40,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   void _loadUserData() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     
-    // Utiliser les getters de AuthProvider
     final nameParts = auth.userName?.split(' ') ?? [];
     _firstNameController.text = nameParts.isNotEmpty ? nameParts[0] : '';
     _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
@@ -46,7 +47,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _schoolController.text = auth.userSchool ?? '';
     _phoneController.text = auth.userPhone ?? '';
     _bioController.text = auth.userBio ?? '';
-    _currentAvatarUrl = auth.userAvatar;
+    
+    // ✅ Construire l'URL complète de l'avatar
+    final avatarPath = auth.userAvatar;
+    if (avatarPath != null && avatarPath.isNotEmpty) {
+      _currentAvatarUrl = '${EnvironmentConfig.baseUrl}$avatarPath';
+    }
   }
 
   @override
@@ -64,6 +70,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final apiClient = Provider.of<ApiClient>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,12 +86,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photo de profil
+              // ✅ Passer apiClient au picker
               ProfileImagePicker(
                 currentImageUrl: _currentAvatarUrl,
-                onImageSelected: (file) {
-                  setState(() => _selectedAvatar = file);
+                onImageSelected: (url) {
+                  setState(() {
+                    if (url != null) {
+                      _currentAvatarUrl = '${EnvironmentConfig.baseUrl}$url';
+                    } else {
+                      _currentAvatarUrl = null;
+                    }
+                  });
                 },
+                apiClient: apiClient,
                 radius: isMobile ? 50 : 60,
               ),
               const SizedBox(height: 24),
@@ -133,8 +147,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 items: const [
                   '6ème', '5ème', '4ème', '3ème',
                   'Seconde', 'Première', 'Terminale',
-                  //'Licence 1', 'Licence 2', 'Licence 3',
-                  //'Master 1', 'Master 2',
+                  'Licence 1', 'Licence 2', 'Licence 3',
+                  'Master 1', 'Master 2',
                 ],
                 onChanged: (value) {
                   _levelController.text = value ?? '';
@@ -344,11 +358,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (_selectedAvatar != null) {
         final bytes = await _selectedAvatar!.readAsBytes();
         final formData = FormData.fromMap({
-          'file': MultipartFile.fromBytes(
-            bytes,
-            filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          ),
-        });
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          contentType: MediaType('image', 'jpeg'),  // au lieu de 'image/jpeg'
+        ),
+      });
 
         final response = await apiClient.post(
           '/auth/me/avatar',
@@ -356,7 +371,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         );
         
         if (response.statusCode == 200) {
-          avatarUrl = response.data['avatar_url'];
+          final data = response.data;
+          // ✅ Stocker le chemin relatif (pas l'URL complète)
+          avatarUrl = data['avatar_url'];
         }
       }
 
@@ -374,13 +391,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       setState(() => _isLoading = false);
 
       if (success && mounted) {
+        // ✅ Recharger les données utilisateur
+        //await authProvider.loadCurrentUser();
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('✅ Profil mis à jour avec succès'),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-            //  borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
         );
