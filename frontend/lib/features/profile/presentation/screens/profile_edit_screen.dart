@@ -3,7 +3,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http_parser/http_parser.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_client.dart';
@@ -20,39 +19,25 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Controllers
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _levelController = TextEditingController();
   final _schoolController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
-
+  
+  // État
   File? _selectedAvatar;
   String? _currentAvatarUrl;
   bool _isLoading = false;
+  bool _isAvatarUploading = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-  }
-
-  void _loadUserData() {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    
-    final nameParts = auth.userName?.split(' ') ?? [];
-    _firstNameController.text = nameParts.isNotEmpty ? nameParts[0] : '';
-    _lastNameController.text = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-    _levelController.text = auth.userLevel ?? '';
-    _schoolController.text = auth.userSchool ?? '';
-    _phoneController.text = auth.userPhone ?? '';
-    _bioController.text = auth.userBio ?? '';
-    
-    // ✅ Construire l'URL complète de l'avatar
-    final avatarPath = auth.userAvatar;
-    if (avatarPath != null && avatarPath.isNotEmpty) {
-      _currentAvatarUrl = '${EnvironmentConfig.baseUrl}$avatarPath';
-    }
   }
 
   @override
@@ -64,6 +49,39 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _phoneController.dispose();
     _bioController.dispose();
     super.dispose();
+  }
+
+  void _loadUserData() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final user = auth.user;
+    
+    if (user != null) {
+      _firstNameController.text = user.firstName ?? '';
+      _lastNameController.text = user.lastName ?? '';
+      _levelController.text = user.level ?? '';
+      _schoolController.text = user.school ?? '';
+      _phoneController.text = user.phoneNumber ?? '';
+      _bioController.text = user.bio ?? '';
+      
+      // ✅ Construire l'URL complète de l'avatar
+      final avatarPath = user.avatarUrl;
+      if (avatarPath != null && avatarPath.isNotEmpty) {
+        _currentAvatarUrl = _buildFullUrl(avatarPath);
+      }
+    }
+  }
+
+  String _buildFullUrl(String path) {
+    // Si le chemin commence déjà par http, le retourner tel quel
+    if (path.startsWith('http')) return path;
+    
+    // Sinon, construire l'URL complète
+    final baseUrl = EnvironmentConfig.baseUrl;
+    // Supprimer le slash final du baseUrl si présent
+    final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    // Ajouter un slash au début du path si nécessaire
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$cleanBaseUrl$cleanPath';
   }
 
   @override
@@ -78,6 +96,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         elevation: 0,
         foregroundColor: isDark ? AppColors.textWhite : AppColors.textPrimary,
+        actions: [
+          // ✅ Indicateur de sauvegarde
+          if (_isLoading || _isAvatarUploading)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(isMobile ? 16 : 24),
@@ -86,29 +121,47 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ Passer apiClient au picker
+              // ✅ ProfileImagePicker amélioré avec caméra et crop
               ProfileImagePicker(
                 currentImageUrl: _currentAvatarUrl,
                 onImageSelected: (url) {
                   setState(() {
                     if (url != null) {
-                      _currentAvatarUrl = '${EnvironmentConfig.baseUrl}$url';
+                      _currentAvatarUrl = _buildFullUrl(url);
                     } else {
                       _currentAvatarUrl = null;
+                      _selectedAvatar = null;
                     }
                   });
                 },
                 apiClient: apiClient,
                 radius: isMobile ? 50 : 60,
               ),
+              
+              const SizedBox(height: 8),
+              
+              // ✅ Message d'aide
+              Center(
+                child: Text(
+                  'Appuyez sur la caméra pour changer votre photo',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ),
+              
               const SizedBox(height: 24),
-
+              
+              // ========== FORMULAIRE ==========
+              
               // Prénom
               _buildTextField(
                 controller: _firstNameController,
                 label: 'Prénom *',
                 icon: Icons.person_outline,
                 isDark: isDark,
+                enabled: !_isLoading,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Le prénom est requis';
@@ -127,6 +180,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 label: 'Nom *',
                 icon: Icons.person_outline,
                 isDark: isDark,
+                enabled: !_isLoading,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Le nom est requis';
@@ -139,7 +193,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Niveau
+              // Niveau (Dropdown)
               _buildDropdownField(
                 value: _levelController.text,
                 label: 'Niveau scolaire',
@@ -151,9 +205,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   'Master 1', 'Master 2',
                 ],
                 onChanged: (value) {
-                  _levelController.text = value ?? '';
+                  setState(() {
+                    _levelController.text = value ?? '';
+                  });
                 },
                 isDark: isDark,
+                enabled: !_isLoading,
               ),
               const SizedBox(height: 16),
 
@@ -163,6 +220,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 label: 'École / Établissement',
                 icon: Icons.business_outlined,
                 isDark: isDark,
+                enabled: !_isLoading,
+                hintText: 'Ex: Lycée Jean-Jacques Rousseau',
               ),
               const SizedBox(height: 16),
 
@@ -173,6 +232,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 isDark: isDark,
+                enabled: !_isLoading,
+                hintText: 'Ex: 06 12 34 56 78',
               ),
               const SizedBox(height: 16),
 
@@ -183,18 +244,32 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 icon: Icons.description_outlined,
                 maxLines: 4,
                 isDark: isDark,
+                enabled: !_isLoading,
                 hintText: 'Parlez-nous un peu de vous...',
               ),
               const SizedBox(height: 32),
 
-              // Boutons
+              // ========== BOUTONS ==========
               _buildButtons(isDark),
+              
+              const SizedBox(height: 16),
+              
+              // ✅ Bouton de suppression de compte (optionnel)
+              TextButton(
+                onPressed: _isLoading ? null : _showDeleteAccountDialog,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                ),
+                child: const Text('Supprimer mon compte'),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  // ========== WIDGETS ==========
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -204,12 +279,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     TextInputType? keyboardType,
     int maxLines = 1,
     String? hintText,
+    bool enabled = true,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      enabled: enabled,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -262,6 +339,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
     required bool isDark,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -280,7 +358,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
         dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
-        icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white : Colors.black),
+        icon: Icon(
+          Icons.arrow_drop_down, 
+          color: isDark ? Colors.white : Colors.black,
+        ),
         style: TextStyle(
           color: isDark ? AppColors.textWhite : AppColors.textPrimary,
           fontSize: 15,
@@ -291,7 +372,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             child: Text(item),
           );
         }).toList(),
-        onChanged: onChanged,
+        onChanged: enabled ? onChanged : null,
+        isExpanded: true,
       ),
     );
   }
@@ -344,39 +426,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
+  // ========== ACTIONS ==========
+
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    // ✅ Valider le formulaire
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final apiClient = Provider.of<ApiClient>(context, listen: false);
 
-      // ✅ 1. Upload de l'avatar si sélectionné
-      String? avatarUrl;
-      if (_selectedAvatar != null) {
-        final bytes = await _selectedAvatar!.readAsBytes();
-        final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(
-          bytes,
-          filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          contentType: MediaType('image', 'jpeg'),  // au lieu de 'image/jpeg'
-        ),
-      });
-
-        final response = await apiClient.post(
-          '/auth/me/avatar',
-          data: formData,
-        );
-        
-        if (response.statusCode == 200) {
-          final data = response.data;
-          // ✅ Stocker le chemin relatif (pas l'URL complète)
-          avatarUrl = data['avatar_url'];
-        }
-      }
-
+      // ✅ 1. Upload de l'avatar si sélectionné (le ProfileImagePicker l'a déjà fait)
+      // ✅ Le ProfileImagePicker gère déjà l'upload via son callback
+      
       // ✅ 2. Mise à jour du profil
       final success = await authProvider.updateProfile(
         firstName: _firstNameController.text.trim(),
@@ -385,49 +450,116 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         school: _schoolController.text.trim().isNotEmpty ? _schoolController.text.trim() : null,
         phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         bio: _bioController.text.trim().isNotEmpty ? _bioController.text.trim() : null,
-        avatarUrl: avatarUrl,
+        // L'avatar est déjà mis à jour via le ProfileImagePicker
       );
+
+      if (!mounted) return;
 
       setState(() => _isLoading = false);
 
-      if (success && mounted) {
-        // ✅ Recharger les données utilisateur
-        //await authProvider.loadCurrentUser();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Profil mis à jour avec succès'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+      if (success) {
+        _showSnackBar(
+          '✅ Profil mis à jour avec succès',
+          AppColors.success,
         );
+        // ✅ Recharger les données utilisateur
+        await authProvider.loadUserProfile();
         Navigator.pop(context);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authProvider.error ?? '❌ Erreur lors de la mise à jour'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+      } else {
+        _showSnackBar(
+          authProvider.error ?? '❌ Erreur lors de la mise à jour',
+          AppColors.error,
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+      _showSnackBar(
+        '❌ Erreur: $e',
+        AppColors.error,
+      );
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+        title: const Text('Supprimer le compte'),
+        content: const Text(
+          'Cette action est irréversible. Toutes vos données seront supprimées.\n'
+          'Êtes-vous sûr de vouloir continuer ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteAccount();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.deleteAccount();
+      
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      
+      if (success) {
+        _showSnackBar(
+          '✅ Compte supprimé avec succès',
+          AppColors.success,
+        );
+        // Rediriger vers la page de login
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      } else {
+        _showSnackBar(
+          authProvider.error ?? '❌ Erreur lors de la suppression',
+          AppColors.error,
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        '❌ Erreur: $e',
+        AppColors.error,
       );
     }
   }

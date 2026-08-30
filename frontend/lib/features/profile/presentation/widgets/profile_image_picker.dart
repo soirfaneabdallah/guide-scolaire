@@ -1,11 +1,13 @@
 // frontend/lib/features/profile/widgets/profile_image_picker.dart
 
-import 'dart:io';
+import 'dart:io' show File, Directory; // ✅ Import conditionnel
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:universal_platform/universal_platform.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/network/api_client.dart';
+import 'dart:typed_data'; // ✅ Pour les bytes sur Web
 
 class ProfileImagePicker extends StatefulWidget {
   const ProfileImagePicker({
@@ -26,7 +28,9 @@ class ProfileImagePicker extends StatefulWidget {
 }
 
 class _ProfileImagePickerState extends State<ProfileImagePicker> {
-  File? _selectedImage;
+  // ✅ Utiliser Uint8List pour stocker l'image (compatible Web)
+  Uint8List? _selectedImageBytes;
+  String? _selectedImagePath; // Pour le nom du fichier
   bool _isLoading = false;
   String? _uploadedImageUrl;
 
@@ -37,7 +41,6 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
     return Center(
       child: Stack(
         children: [
-          // Avatar
           Container(
             width: widget.radius * 2,
             height: widget.radius * 2,
@@ -53,7 +56,7 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
               ],
               image: _getImageProvider(),
             ),
-            child: _selectedImage == null && widget.currentImageUrl == null
+            child: _selectedImageBytes == null && widget.currentImageUrl == null
                 ? Center(
                     child: Text(
                       '?',
@@ -66,7 +69,6 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
                   )
                 : null,
           ),
-          // Badge de modification
           Positioned(
             bottom: 0,
             right: 0,
@@ -106,15 +108,14 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
     );
   }
 
-  // ✅ CORRECTION : Retourner DecorationImage directement
   DecorationImage? _getImageProvider() {
-    if (_selectedImage != null) {
+    if (_selectedImageBytes != null) {
       return DecorationImage(
-        image: FileImage(_selectedImage!),
+        image: MemoryImage(_selectedImageBytes!),
         fit: BoxFit.cover,
       );
     }
-    if (widget.currentImageUrl != null) {
+    if (widget.currentImageUrl != null && widget.currentImageUrl!.isNotEmpty) {
       return DecorationImage(
         image: NetworkImage(widget.currentImageUrl!),
         fit: BoxFit.cover,
@@ -129,14 +130,13 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle
             Container(
               width: 40,
               height: 4,
@@ -159,6 +159,20 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // ✅ CAMÉRA (disponible sur mobile uniquement)
+                  if (!UniversalPlatform.isWeb)
+                    _buildPickerOption(
+                      icon: Icons.camera_alt,
+                      label: 'Appareil photo',
+                      subtitle: 'Prendre une nouvelle photo',
+                      onTap: () => _pickImage(ImageSource.camera),
+                      isDark: isDark,
+                    ),
+                  
+                  if (!UniversalPlatform.isWeb) const Divider(),
+                  
+                  // ✅ GALERIE (disponible partout)
                   _buildPickerOption(
                     icon: Icons.photo_library,
                     label: 'Galerie',
@@ -167,15 +181,8 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
                     isDark: isDark,
                   ),
                   const Divider(),
-                  _buildPickerOption(
-                    icon: Icons.camera_alt,
-                    label: 'Appareil photo',
-                    subtitle: 'Prendre une nouvelle photo',
-                    onTap: () => _pickImage(ImageSource.camera),
-                    isDark: isDark,
-                  ),
-                  const Divider(),
-                  if (_selectedImage != null || widget.currentImageUrl != null)
+                  
+                  if (_selectedImageBytes != null || widget.currentImageUrl != null)
                     _buildPickerOption(
                       icon: Icons.delete_outline,
                       label: 'Supprimer la photo',
@@ -239,60 +246,56 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
     );
   }
 
-  // ✅ SOLUTION CORRIGÉE : Utiliser XFile directement
+  // ✅ Méthode unifiée pour prendre/choisir une image
   Future<void> _pickImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      
-      // ✅ Pour une seule image
       final XFile? pickedFile = await picker.pickImage(
         source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
+        maxWidth: 512,
+        maxHeight: 512,
         imageQuality: 80,
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _isLoading = true;
-        });
-
-        // ✅ Uploader l'image
-        await _uploadImage(pickedFile);
+        setState(() => _isLoading = true);
         
-        setState(() {
-          _isLoading = false;
-        });
+        // ✅ Lire les bytes (fonctionne partout)
+        final bytes = await pickedFile.readAsBytes();
+        final fileName = pickedFile.name;
+        
+        // ✅ Uploader directement
+        await _uploadImage(bytes, fileName);
+        
+        if (mounted) {
+          setState(() {
+            _selectedImageBytes = bytes;
+            _selectedImagePath = fileName;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('❌ Erreur sélection image: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erreur lors de la sélection de l\'image'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Erreur lors de la sélection de l\'image');
+      }
     }
   }
 
-  // ✅ Upload vers votre backend FastAPI
-  Future<void> _uploadImage(XFile imageFile) async {
+  // ✅ Upload avec Uint8List (compatible Web)
+  Future<void> _uploadImage(Uint8List bytes, String fileName) async {
     try {
-      // Lire les bytes du fichier
-      final bytes = await imageFile.readAsBytes();
-      
-      // Créer le FormData
+      // Créer le FormData avec les bytes
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(
           bytes,
-          filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          filename: 'avatar_${DateTime.now().millisecondsSinceEpoch}_$fileName',
+          contentType: DioMediaType('image', 'jpeg'),
         ),
       });
 
-      // Envoyer au backend
       final response = await widget.apiClient.post(
         '/auth/me/avatar',
         data: formData,
@@ -302,24 +305,10 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
         final data = response.data;
         final avatarUrl = data['avatar_url'];
         
-        setState(() {
-          _uploadedImageUrl = avatarUrl;
-          _selectedImage = null;
-        });
-        
         // ✅ Notifier le parent
         widget.onImageSelected(avatarUrl);
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Photo de profil mise à jour'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              //borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        _showSuccess('✅ Photo de profil mise à jour');
       } else {
         throw Exception('Erreur lors de l\'upload');
       }
@@ -331,8 +320,36 @@ class _ProfileImagePickerState extends State<ProfileImagePicker> {
 
   void _removeImage() {
     setState(() {
-      _selectedImage = null;
+      _selectedImageBytes = null;
+      _selectedImagePath = null;
     });
     widget.onImageSelected(null);
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 }

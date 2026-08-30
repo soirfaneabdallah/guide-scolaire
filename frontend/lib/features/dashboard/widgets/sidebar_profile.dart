@@ -423,33 +423,7 @@ class _SidebarProfileState extends State<SidebarProfile>
                     },
                     isDark: isDark,
                   ),
-                  _buildMenuItem(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    subtitle: 'Gérer vos notifications',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    isDark: isDark,
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.help_outline,
-                    title: 'Aide & support',
-                    subtitle: 'FAQ et assistance',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    isDark: isDark,
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.feedback_outlined,
-                    title: 'Donner un avis',
-                    subtitle: 'Partagez votre expérience',
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    isDark: isDark,
-                  ),
+            
                   
                   const Divider(),
                   

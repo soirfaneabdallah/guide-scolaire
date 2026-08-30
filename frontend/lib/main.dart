@@ -44,7 +44,7 @@ class _MyAppState extends State<MyApp> {
     authProvider = AuthProvider();
     apiClient = ApiClient(authProvider: authProvider);
     authProvider.setApiClient(apiClient);
-    authProvider.init();
+    //authProvider.init();
 
     settingsProvider = SettingsProvider();
   }
