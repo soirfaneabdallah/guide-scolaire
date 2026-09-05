@@ -7,6 +7,7 @@ import httpx
 import logging
 import time
 import traceback
+import re
 
 from ....core.database import get_db
 from ....core.dependencies import get_current_active_user
@@ -21,10 +22,150 @@ from ....api.v1.schemas.chat_schemas import (
     ChatHistoryResponse,
     ChatMessageResponse,
 )
+from ....agent.orchestrator.agent_orchestrator import agent_orchestrator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+
+
+# ============================================================
+#  DÉTECTION AMÉLIORÉE DE L'AGENT
+# ============================================================
+
+def should_use_agent(question: str, level: str = "3ème") -> bool:
+    """
+    Détecte si la question nécessite l'utilisation de l'agent.
+    Utilise plusieurs critères : mots-clés, longueur, niveau, patterns.
+    """
+    question_lower = question.lower()
+    
+    # ============================================================
+    # CRITÈRE 1: Mots-clés forts (agent obligatoire)
+    # ============================================================
+    strong_keywords = [
+        # Mathématiques avancées
+        "primitive", "intégrale", "dérivée", "dériver", 
+        "équation différentielle", "limite", "suite",
+        "fonction exponentielle", "logarithme", "trigonométrie",
+        "vecteur", "matrice", "complexe", "nombre complexe",
+        
+        # Analyse et raisonnement
+        "démontre", "prouve", "démonstration", "raisonnement",
+        "justifie", "explique pourquoi", "montre que",
+        "étudie", "analyse", "compare", "synthèse",
+        
+        # Recherche d'informations
+        "recherche", "trouve", "cherche", "document", "source",
+        "théorème", "loi", "principe", "règle",
+        
+        # Mots-clés complexes
+        "étape par étape", "pas à pas", "détaillé",
+        "approfondi", "complexe", "difficile",
+    ]
+    
+    for keyword in strong_keywords:
+        if keyword in question_lower:
+            logger.info(f"🔍 Agent déclenché par mot-clé fort: '{keyword}'")
+            return True
+    
+    # ============================================================
+    # CRITÈRE 2: Patterns mathématiques
+    # ============================================================
+    math_patterns = [
+        r'f\(x\)\s*=',           # f(x) =
+        r'g\(x\)\s*=',           # g(x) =
+        r'\bderiv[eé]e\b',       # dérivée
+        r'\bprimitive\b',        # primitive
+        r'\bintegral[eé]\b',     # intégrale
+        r'\bln\s*\(',            # ln(
+        r'\be\^',                # e^
+        r'\bexp\s*\(',           # exp(
+        r'\bsin\s*\(',           # sin(
+        r'\bcos\s*\(',           # cos(
+        r'\btan\s*\(',           # tan(
+        r'\blimite\b',           # limite
+        r'\bint_',               # ∫
+        r'\bsomme\b',            # somme
+        r'\bproduit\b',          # produit
+        r'\bracine\b',           # racine
+        r'\bcar[ré]e\b',         # carré
+        r'\bcube\b',             # cube
+        r'\bpuissance\b',        # puissance
+        r'\bexposant\b',         # exposant
+        r'\blogarithme\b',       # logarithme
+    ]
+    
+    for pattern in math_patterns:
+        if re.search(pattern, question_lower):
+            logger.info(f"🔍 Agent déclenché par pattern mathématique: '{pattern}'")
+            return True
+    
+    # ============================================================
+    # CRITÈRE 3: Niveau avancé
+    # ============================================================
+    advanced_levels = ["Terminale", "Première", "Seconde", "Licence", "Master"]
+    if any(lvl in level for lvl in advanced_levels):
+        # Vérifier que la question n'est pas trop simple
+        if len(question.split()) > 5:
+            logger.info(f"🔍 Agent déclenché par niveau avancé: {level}")
+            return True
+    
+    # ============================================================
+    # CRITÈRE 4: Longueur de la question
+    # ============================================================
+    word_count = len(question.split())
+    if word_count > 15:
+        logger.info(f"🔍 Agent déclenché par longueur: {word_count} mots")
+        return True
+    
+    # ============================================================
+    # CRITÈRE 5: Mots-clés faibles (agent recommandé)
+    # ============================================================
+    weak_keywords = [
+        "explique", "comment", "pourquoi", "quel est",
+        "calcule", "résous", "trouve", "détermine",
+        "sais-tu", "peux-tu", "pourrais-tu",
+        "j'aimerais", "je voudrais",
+    ]
+    
+    weak_count = sum(1 for kw in weak_keywords if kw in question_lower)
+    if weak_count >= 2 and len(question.split()) > 8:
+        logger.info(f"🔍 Agent déclenché par mots-clés faibles: {weak_count}")
+        return True
+    
+    # ============================================================
+    # CRITÈRE 6: Questions avec des nombres ou formules
+    # ============================================================
+    # Vérifier si la question contient des nombres
+    has_numbers = bool(re.search(r'\d', question))
+    # Vérifier si la question contient des symboles mathématiques
+    has_math_symbols = bool(re.search(r'[=+*/^()]', question))
+    
+    if has_numbers and has_math_symbols and len(question.split()) > 5:
+        logger.info(f"🔍 Agent déclenché par nombres et symboles mathématiques")
+        return True
+    
+    # ============================================================
+    # CRITÈRE 7: Mots de la question précédente
+    # ============================================================
+    # Vérifier si l'utilisateur pose une question de suivi
+    follow_up_patterns = [
+        r'primitive', r'intégrale', r'dérivée',
+        r'donc', r'alors', r'ensuite',
+        r'et si', r'mais', r'pourquoi',
+    ]
+    
+    for pattern in follow_up_patterns:
+        if pattern in question_lower:
+            logger.info(f"🔍 Agent déclenché par question de suivi: '{pattern}'")
+            return True
+    
+    # ============================================================
+    # DÉFAUT: Ne pas utiliser l'agent
+    # ============================================================
+    logger.info("ℹ️ Question simple, utilisation du LLM standard")
+    return False
 
 
 # ============================================================
@@ -39,7 +180,8 @@ async def ask_question(
 ):
     """
     Endpoint pour poser une question à l'assistant IA.
-    Sauvegarde automatiquement la conversation.
+    Utilise l'agent pour les questions complexes,
+    le LLM simple pour les questions rapides.
     """
     chat_repo = ChatRepository(db)
     subject_repo = SubjectRepository(db)
@@ -48,21 +190,17 @@ async def ask_question(
         # ✅ 1. Récupérer la matière
         subject = None
         
-        # ✅ Vérifier si subject_id est fourni (SI LE CHAMP EXISTE DANS AskRequest)
         if hasattr(request, 'subject_id') and request.subject_id:
             subject = subject_repo.get_subject_by_id(request.subject_id)
         
-        # ✅ Vérifier si subject_slug est fourni
         if not subject and hasattr(request, 'subject_slug') and request.subject_slug:
             subject = subject_repo.get_subject_by_slug(request.subject_slug)
         
-        # ✅ Si matière non trouvée, utiliser la matière par défaut
         if not subject:
             default_subjects = subject_repo.get_default_subjects()
             if default_subjects:
                 subject = default_subjects[0]
             else:
-                # ✅ Créer une matière par défaut si aucune n'existe
                 from ....models.subject import Subject
                 subject = Subject(
                     name="Général",
@@ -84,45 +222,80 @@ async def ask_question(
             level=request.level,
         )
 
-        # ✅ 3. Appeler le service IA
         start_time = time.time()
-        
-        try:
-            # ✅ Créer une nouvelle instance du client IA
-            ia_client = IAClient()
-            
-            result = await ia_client.ask(
-                question=request.question,
-                level=request.level,
-            )
-            
-            processing_time = (time.time() - start_time) * 1000  # en ms
-            
-            # ✅ Récupérer la réponse (le service IA retourne "response", pas "answer")
-            answer = result.get("response") or result.get("answer") or "Je n'ai pas pu générer une réponse."
-            
-            # ✅ Récupérer le modèle utilisé
-            model_used = result.get("model_used") or result.get("model") or "unknown"
-            
-        except httpx.TimeoutException:
-            logger.error("⏰ Timeout du service IA")
-            answer = "Le service IA met trop de temps à répondre. Veuillez réessayer."
-            model_used = "timeout"
-            processing_time = 0
-            
-        except httpx.ConnectError:
-            logger.error("🔌 Connexion au service IA impossible")
-            answer = "Le service IA n'est pas disponible. Veuillez réessayer plus tard."
-            model_used = "unavailable"
-            processing_time = 0
-            
-        except Exception as e:
-            logger.error(f"❌ Erreur IA: {str(e)}")
-            answer = "Je n'ai pas pu générer une réponse. Veuillez réessayer."
-            model_used = "error"
-            processing_time = 0
+        answer = ""
+        model_used = "unknown"
+        processing_time = 0
 
-        # ✅ 4. Sauvegarder la réponse de l'IA
+        # ✅ 3. Décider si on utilise l'agent ou le LLM simple
+        use_agent = should_use_agent(request.question, request.level)
+        
+        logger.info(f"📌 Question: {request.question[:50]}...")
+        logger.info(f"📚 Niveau: {request.level}")
+        logger.info(f"🤖 Utiliser l'agent: {use_agent}")
+        
+        if use_agent:
+            # ✅ UTILISER L'AGENT
+            logger.info("🧠 Lancement de l'agent...")
+            
+            try:
+                agent_result = await agent_orchestrator.execute(
+                    objective=request.question,
+                    user_id=current_user.id,
+                    subject=subject.name if subject else None,
+                    level=request.level,
+                    max_iterations=10
+                )
+                
+                answer = agent_result.get("answer", "L'agent n'a pas pu générer une réponse.")
+                model_used = f"agent_{agent_result.get('status', 'unknown')}"
+                processing_time = (time.time() - start_time) * 1000
+                
+                logger.info(f"✅ Agent terminé: {agent_result.get('iterations', 0)} itérations, status: {agent_result.get('status', 'unknown')}")
+                
+                # ✅ Si l'agent a échoué, fallback sur le LLM
+                if "Erreur" in answer or "pas pu" in answer:
+                    logger.warning("⚠️ Agent a échoué, fallback sur le LLM")
+                    use_agent = False
+                
+            except Exception as e:
+                logger.error(f"❌ Erreur agent: {str(e)}")
+                logger.info("🔄 Fallback sur le LLM simple...")
+                use_agent = False
+        
+        if not use_agent:
+            # ✅ UTILISER LE LLM SIMPLE
+            try:
+                ia_client = IAClient()
+                
+                result = await ia_client.ask(
+                    question=request.question,
+                    level=request.level,
+                )
+                
+                processing_time = (time.time() - start_time) * 1000
+                answer = result.get("response") or result.get("answer") or "Je n'ai pas pu générer une réponse."
+                model_used = result.get("model_used") or result.get("model") or "qwen"
+                
+            except httpx.TimeoutException:
+                logger.error("⏰ Timeout du service IA")
+                answer = "Le service IA met trop de temps à répondre. Veuillez réessayer."
+                model_used = "timeout"
+                processing_time = 0
+                
+            except httpx.ConnectError:
+                logger.error("🔌 Connexion au service IA impossible")
+                answer = "Le service IA n'est pas disponible. Veuillez réessayer plus tard."
+                model_used = "unavailable"
+                processing_time = 0
+                
+            except Exception as e:
+                logger.error(f"❌ Erreur IA: {str(e)}")
+                answer = "Je n'ai pas pu générer une réponse. Veuillez réessayer."
+                model_used = "error"
+                processing_time = 0
+
+        # ✅ 4. Sauvegarder la réponse
         chat_repo.save_message(
             user_id=current_user.id,
             subject_id=subject.id,
@@ -146,7 +319,6 @@ async def ask_question(
         logger.error(f"❌ ERREUR: {type(e).__name__}: {e}")
         logger.error(traceback.format_exc())
         
-        # ✅ Fallback: sauvegarder un message d'erreur
         try:
             chat_repo.save_message(
                 user_id=current_user.id,
@@ -178,13 +350,10 @@ async def get_chat_history(
     limit: int = 100,
     offset: int = 0,
 ):
-    """
-    Récupère l'historique des messages pour une matière donnée.
-    """
+    """Récupère l'historique des messages pour une matière donnée."""
     chat_repo = ChatRepository(db)
     subject_repo = SubjectRepository(db)
 
-    # ✅ Récupérer la matière par ID
     subject = subject_repo.get_subject_by_id(subject_id)
     if not subject:
         raise HTTPException(
@@ -192,7 +361,6 @@ async def get_chat_history(
             detail=f"Matière avec l'ID {subject_id} non trouvée"
         )
 
-    # ✅ Récupérer les messages
     messages = chat_repo.get_messages_for_subject(
         user_id=current_user.id,
         subject_id=subject.id,
@@ -200,7 +368,6 @@ async def get_chat_history(
         offset=offset,
     )
 
-    # ✅ Construire la réponse
     return ChatHistoryResponse(
         subject_id=subject.id,
         subject_name=subject.name,
@@ -222,7 +389,7 @@ async def get_chat_history(
 
 
 # ============================================================
-#  RÉCUPÉRER L'HISTORIQUE PAR SLUG (POUR COMPATIBILITÉ)
+#  RÉCUPÉRER L'HISTORIQUE PAR SLUG
 # ============================================================
 
 @router.get("/history/slug/{subject_slug}", response_model=ChatHistoryResponse)
@@ -233,9 +400,7 @@ async def get_chat_history_by_slug(
     limit: int = 100,
     offset: int = 0,
 ):
-    """
-    Récupère l'historique des messages pour une matière donnée (par slug).
-    """
+    """Récupère l'historique des messages pour une matière donnée (par slug)."""
     chat_repo = ChatRepository(db)
     subject_repo = SubjectRepository(db)
 
@@ -283,13 +448,10 @@ async def clear_chat_history(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Supprime tout l'historique des messages pour une matière donnée.
-    """
+    """Supprime tout l'historique des messages pour une matière donnée."""
     chat_repo = ChatRepository(db)
     subject_repo = SubjectRepository(db)
 
-    # ✅ Vérifier que la matière existe
     subject = subject_repo.get_subject_by_id(subject_id)
     if not subject:
         raise HTTPException(
@@ -297,9 +459,7 @@ async def clear_chat_history(
             detail=f"Matière avec l'ID {subject_id} non trouvée"
         )
 
-    # ✅ Supprimer l'historique
     deleted = chat_repo.clear_subject_history(current_user.id, subject.id)
-    
     return None
 
 
@@ -313,12 +473,9 @@ async def delete_message(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Supprime un message spécifique.
-    """
+    """Supprime un message spécifique."""
     chat_repo = ChatRepository(db)
     
-    # ✅ Vérifier que le message appartient à l'utilisateur
     message = chat_repo.get_message(message_id)
     if not message:
         raise HTTPException(
@@ -342,9 +499,7 @@ async def delete_message(
 
 @router.get("/ia/status")
 async def get_ia_status():
-    """
-    Vérifie le statut du service IA.
-    """
+    """Vérifie le statut du service IA."""
     try:
         ia_client = IAClient()
         status = await ia_client.get_status()
@@ -365,9 +520,7 @@ async def get_ia_status():
 
 @router.get("/health")
 async def health_check():
-    """
-    Vérifie la santé du service chat.
-    """
+    """Vérifie la santé du service chat."""
     try:
         ia_client = IAClient()
         health = await ia_client.check_health()
@@ -382,3 +535,49 @@ async def health_check():
             "service": "chat",
             "error": str(e)
         }
+
+
+# ============================================================
+#  STATUT DE L'AGENT
+# ============================================================
+
+@router.get("/agent/status")
+async def get_agent_status():
+    """Vérifie le statut de l'agent."""
+    try:
+        sessions = agent_orchestrator.get_sessions()
+        active_sessions = len([
+            s for s in sessions.values()
+            if s.status.value not in ["completed", "failed", "cancelled"]
+        ])
+        
+        return {
+            "status": "ok",
+            "agent": "AgentOrchestrator",
+            "active_sessions": active_sessions,
+            "total_sessions": len(sessions)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+# ============================================================
+#  DÉTECTER SI L'AGENT SERAIT UTILISÉ (TEST)
+# ============================================================
+
+@router.post("/detect-agent")
+async def detect_agent_usage(request: AskRequest):
+    """
+    Endpoint de test pour vérifier si l'agent serait utilisé.
+    """
+    use_agent = should_use_agent(request.question, request.level)
+    
+    return {
+        "question": request.question,
+        "level": request.level,
+        "would_use_agent": use_agent,
+        "reason": "Agent would be used" if use_agent else "Simple question, using standard LLM"
+    }

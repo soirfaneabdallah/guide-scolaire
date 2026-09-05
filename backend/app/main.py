@@ -9,6 +9,7 @@ from .api.v1.routes.chat import router as chat_router
 from .repositories.subject_repository import SubjectRepository
 from .api.v1.routes.subjects import router as subjects_router
 from .api.v1.routes.books import router as books_router
+from app.api.v1.routes.agent import router as agent_router
 import os
 from fastapi.staticfiles import StaticFiles
 
@@ -41,7 +42,8 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(subjects_router, prefix="/api/v1")
-app.include_router(books_router, prefix="/api/v1")  # ✅ DOIT ÊTRE PRÉSENT
+app.include_router(books_router, prefix="/api/v1")
+app.include_router(agent_router, prefix="/api/v1", tags=["Agent"])
 
 @app.get("/")
 def root():

@@ -5,6 +5,7 @@
 
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -111,28 +112,34 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
         try:
             prompt = self._build_decision_prompt(state)
             
-            # Appel au service IA
+            # ✅ Appel au service IA avec tous les paramètres
             response = await self.ia_client.ask(
                 question=prompt,
                 level=state.get('level', '3eme'),
-                subject=state.get('subject', 'general')
+                subject=state.get('subject', 'general'),
+                turn_number=state.get('iterations', 0) + 1
             )
             
             decision_text = response.get('response', '')
+            logger.debug(f"📝 Decision text: {decision_text[:200]}...")
             
-            # Parser la decision JSON
+            # ✅ Parser la decision JSON
             try:
-                import re
                 json_match = re.search(r'\{.*\}', decision_text, re.DOTALL)
                 if json_match:
                     decision_data = json.loads(json_match.group())
                 else:
-                    decision_data = {
-                        "action": "finish",
-                        "final_answer": decision_text[:500],
-                        "reason": "Decision extraite du texte"
-                    }
-            except:
+                    # ✅ Essayer de parser tout le texte
+                    try:
+                        decision_data = json.loads(decision_text)
+                    except:
+                        decision_data = {
+                            "action": "finish",
+                            "final_answer": decision_text[:500],
+                            "reason": "Decision extraite du texte"
+                        }
+            except Exception as e:
+                logger.warning(f"⚠️ Erreur parsing JSON: {str(e)}")
                 decision_data = {
                     "action": "finish",
                     "final_answer": decision_text[:500],
@@ -140,8 +147,9 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 }
             
             action = decision_data.get('action', 'finish')
+            logger.info(f"🎯 Action decidee: {action}")
             
-            # Mettre a jour l'historique
+            # ✅ Mettre a jour l'historique
             step_history = state.get('step_history', [])
             step_history.append({
                 "action": action,
@@ -149,6 +157,9 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 "tool": decision_data.get('tool'),
                 "timestamp": datetime.now().isoformat()
             })
+            
+            # ✅ Mettre a jour les iterations
+            iterations = state.get('iterations', 0) + 1
             
             return {
                 "current_action": action,
@@ -158,6 +169,7 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 "final_answer": decision_data.get('final_answer'),
                 "completion_reason": decision_data.get('reason'),
                 "step_history": step_history,
+                "iterations": iterations,
                 "status": "deciding"
             }
             
@@ -179,24 +191,27 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
         logger.info(f"📚 RAG: {query[:50]}...")
         
         try:
-            # Appel au service IA pour la recherche RAG
-            # Pour l'instant, simulation
+            # ✅ Appel au service IA pour la recherche RAG
+            # Pour l'instant, simulation en attendant l'implémentation complète
             results = [
                 {
-                    "content": f"Information sur '{query}': Ce concept est fondamental.",
+                    "content": f"Information sur '{query}': Ce concept est fondamental en {state.get('subject', 'mathematiques')}.",
                     "source": "base_connaissances",
+                    "subject": state.get('subject', 'general'),
+                    "level": state.get('level', '3eme'),
                     "score": 0.95
                 },
                 {
-                    "content": f"Exemple d'application de '{query}':",
+                    "content": f"Exemple d'application de '{query}' dans la vie quotidienne.",
                     "source": "exemples",
+                    "subject": state.get('subject', 'general'),
                     "score": 0.82
                 }
             ]
             
             knowledge = state.get('accumulated_knowledge', [])
             for r in results:
-                knowledge.append(f"Recherche: {r['content'][:100]}...")
+                knowledge.append(f"📚 {r['content'][:100]}...")
             
             return {
                 "rag_results": results,
@@ -239,16 +254,17 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
             
             knowledge = state.get('accumulated_knowledge', [])
             if result.success:
-                knowledge.append(f"Outil '{tool_name}': {str(result.result)[:200]}")
+                knowledge.append(f"🔧 Outil '{tool_name}': {str(result.result)[:200]}")
             else:
-                knowledge.append(f"Erreur outil '{tool_name}': {result.error}")
+                knowledge.append(f"❌ Erreur outil '{tool_name}': {result.error}")
             
             return {
                 "tool_results": [{
                     "tool": tool_name,
                     "success": result.success,
                     "result": result.result,
-                    "error": result.error
+                    "error": result.error,
+                    "metadata": result.metadata
                 }],
                 "accumulated_knowledge": knowledge,
                 "status": "observing"
@@ -276,6 +292,10 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
         tool_count = len(state.get('tool_results', []))
         knowledge_count = len(state.get('accumulated_knowledge', []))
         
+        logger.info(f"   📚 RAG: {rag_count} resultats")
+        logger.info(f"   🔧 Tools: {tool_count} executions")
+        logger.info(f"   📖 Connaissances: {knowledge_count}")
+        
         return {
             "status": "evaluating",
             "context": {
@@ -297,8 +317,9 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
         max_iterations = state.get('max_iterations', 20)
         knowledge = state.get('accumulated_knowledge', [])
         
-        # Si on a une reponse finale
+        # ✅ Si on a une reponse finale
         if state.get('final_answer'):
+            logger.info("✅ Reponse finale presente")
             return {
                 "should_continue": "finish",
                 "status": "completed",
@@ -306,8 +327,9 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 "final_answer": state.get('final_answer')
             }
         
-        # Si on a assez de connaissances
+        # ✅ Si on a assez de connaissances
         if len(knowledge) >= 3:
+            logger.info(f"✅ Assez de connaissances ({len(knowledge)})")
             return {
                 "should_continue": "finish",
                 "status": "completed",
@@ -315,8 +337,9 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 "final_answer": self._generate_final_answer(state)
             }
         
-        # Si on a depasse le nombre max d'iterations
+        # ✅ Si on a depasse le nombre max d'iterations
         if iterations >= max_iterations:
+            logger.warning(f"⚠️ Max iterations atteint: {iterations}/{max_iterations}")
             return {
                 "should_continue": "finish",
                 "status": "failed",
@@ -325,7 +348,8 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
                 "completion_reason": "max_iterations_exceeded"
             }
         
-        # Continuer
+        # ✅ Continuer
+        logger.info(f"🔄 Continuation (iteration {iterations}/{max_iterations})")
         return {
             "should_continue": "continue",
             "status": "analyzing"
@@ -336,11 +360,15 @@ REPONDS AVEC UN JSON UNIQUEMENT."""
         knowledge = state.get('accumulated_knowledge', [])
         
         if not knowledge:
-            return "Je n'ai pas trouve suffisamment d'informations."
+            return "Je n'ai pas trouve suffisamment d'informations pour repondre a votre question."
         
-        answer = "Voici ce que j'ai pu trouver :\n\n"
-        for item in knowledge[:5]:
-            answer += f"- {item}\n"
-        answer += "\nN'hesitez pas si vous avez besoin de plus de details."
+        answer = "📝 **Voici ce que j'ai pu trouver :**\n\n"
+        for i, item in enumerate(knowledge[:5], 1):
+            answer += f"{i}. {item}\n"
+        
+        if len(knowledge) > 5:
+            answer += f"\n*... et {len(knowledge) - 5} autre(s) information(s).*"
+        
+        answer += "\n\nN'hesitez pas si vous avez besoin de plus de details ou si vous voulez approfondir un point particulier."
         
         return answer
