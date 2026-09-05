@@ -1,9 +1,12 @@
-# ia-service/src/main.py
+# ============================================================
+# FICHIER: ia-service/src/main.py
+# DESCRIPTION: Serveur FastAPI pour le service IA
+# ============================================================
 
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.routes import router  # ✅ Utiliser .api.routes
+from .api.routes import router
 
 # Configuration des logs
 logging.basicConfig(
@@ -28,18 +31,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(router)
+# ✅ INCLURE LE ROUTER AVEC LE PREFIXE /api
+app.include_router(router, prefix="/api")
+
 
 @app.get("/")
 async def root():
     return {
         "service": "E-learningAI - Service IA",
         "status": "running",
-        "docs": "/docs",
-        "health": "/api/health",
+        "endpoints": {
+            "ask": "/api/ask",
+            "video_prompt": "/api/video_prompt",
+            "health": "/health",
+            "docs": "/docs"
+        }
     }
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "ia-service"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",
+        port=8002,
+        reload=True
+    )
