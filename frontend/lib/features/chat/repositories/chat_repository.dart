@@ -1,78 +1,113 @@
 // frontend/lib/features/chat/repositories/chat_repository.dart
 
-import 'package:dio/dio.dart';
-import '../../../core/network/api_client.dart';
+import '../../../../core/network/api_client.dart';
 import '../domain/entities/message.dart';
-import '../repositories/i_chat_repository.dart';
 
-/// Implémentation du repository chat avec Dio.
-class ChatRepository implements IChatRepository {
+class ChatRepository {
   ChatRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   final ApiClient _apiClient;
 
-  @override
-  Future<Message> sendMessage(
-    String question, {
-    int? userId,
-    String? subjectSlug,
-    int? subjectId,  // 👈 AJOUT : ID de la matière
+  // ============================================================
+  // CHARGER L'HISTORIQUE
+  // ============================================================
+
+  /// Charge l'historique des messages pour une matière donnée.
+  Future<List<Message>> getHistory({
+    required int subjectId,
+    int limit = 100,
+    int offset = 0,
   }) async {
-    try {
-      // 👇 Corps de la requête
-      final Map<String, dynamic> data = {
-        'question': question,
-        'level': '3ème',
-      };
-      
-      // ✅ Utiliser l'ID si disponible (plus robuste)
-      if (subjectId != null) {
-        data['subject_id'] = subjectId;
-      } 
-      // Fallback sur le slug si l'ID n'est pas fourni
-      else if (subjectSlug != null && subjectSlug.isNotEmpty) {
-        data['subject_slug'] = subjectSlug;
-      }
+    final response = await _apiClient.get(
+      '/chat/history/$subjectId',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+      },
+    );
 
-      final response = await _apiClient.post(
-        '/chat/ask',
-        data: data,
+    final data = response.data;
+    final messagesJson = data['messages'] as List<dynamic>? ?? [];
+
+    return messagesJson.map((json) {
+      return Message(
+        id: json['id']?.toString() ?? '',
+        content: json['content'] ?? '',
+        isUser: json['is_user'] ?? false,
+        timestamp: json['created_at'] != null
+            ? DateTime.parse(json['created_at'])
+            : DateTime.now(),
+        isError: json['is_error'] ?? false,
       );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final result = response.data as Map<String, dynamic>;
-        return Message(
-          id: result['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          content: result['answer'] ?? '',
-          isUser: false,
-          timestamp: DateTime.now(),
-          suggestions: List<String>.from(result['suggestions'] ?? []),
-          confidence: result['confidence']?.toDouble(),
-        );
-      } else {
-        throw Exception('Erreur ${response.statusCode}: ${response.data?['detail'] ?? 'Erreur inconnue'}');
-      }
-    } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
-    } catch (e) {
-      throw Exception('Erreur inattendue: $e');
-    }
+    }).toList();
   }
 
-  String _handleDioError(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'La connexion a expiré. Vérifie ta connexion internet.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'Impossible de contacter le serveur. Vérifie ta connexion.';
-    }
-    if (e.response?.statusCode == 401) {
-      return 'Session expirée. Reconnecte-toi.';
-    }
-    if (e.response?.statusCode != null) {
-      return 'Erreur ${e.response?.statusCode}: ${e.response?.data?['detail'] ?? 'Erreur inconnue'}';
-    }
-    return 'Une erreur est survenue. Réessaie plus tard.';
+  // ============================================================
+  // ENVOYER UN MESSAGE
+  // ============================================================
+
+  Future<Message> sendMessage({
+    required String question,
+    required int subjectId,
+  }) async {
+    final response = await _apiClient.post(
+      '/chat/ask',
+      data: {
+        'question': question,
+        'subject_id': subjectId,
+      },
+    );
+
+    final data = response.data;
+    final answer = data['answer'] ?? 'Pas de réponse';
+
+    return Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: answer,
+      isUser: false,
+      timestamp: DateTime.now(),
+      suggestions: data['suggestions'] != null
+          ? List<String>.from(data['suggestions'])
+          : const [],
+    );
+  }
+
+  // ============================================================
+  // DEMANDER UNE VIDÉO
+  // ============================================================
+
+  Future<Message> requestVideo({
+    required String prompt,
+    required int subjectId,
+  }) async {
+    final response = await _apiClient.post(
+      '/videos/generate',
+      data: {
+        'prompt': prompt,
+        'subject_id': subjectId,
+      },
+    );
+
+    final data = response.data;
+    final jobId = data['job_id'] ?? 'inconnu';
+
+    return Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: '✅ Demande de vidéo enregistrée !\n\n'
+          '🔖 ID de génération : $jobId\n\n'
+          '⏳ Vous recevrez une notification dès que la vidéo sera prête.',
+      isUser: false,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  // ============================================================
+  // EFFACER L'HISTORIQUE
+  // ============================================================
+
+  Future<void> clearHistory({
+    required int subjectId,
+  }) async {
+    await _apiClient.delete('/chat/history/$subjectId');
   }
 }

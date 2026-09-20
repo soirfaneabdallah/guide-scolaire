@@ -1,14 +1,12 @@
-# ============================================================
-# FICHIER: backend/app/agent/tools/__init__.py
-# DESCRIPTION: Export des outils de l'agent
-# ============================================================
+# backend/app/agent/tools/__init__.py
 
 from .base_tool import BaseTool, ToolResult
 from .registry import ToolRegistry, tool_registry
 from .search_tool import SearchTool
 from .calculator_tool import CalculatorTool
 from .video_tool import VideoTool
-from .register_tools import register_all_tools  # ✅ AJOUTÉ
+from .sympy_tool import SymPyTool  # ✅ AJOUTÉ
+from .register_tools import register_all_tools
 
 __all__ = [
     "BaseTool",
@@ -18,5 +16,6 @@ __all__ = [
     "SearchTool",
     "CalculatorTool",
     "VideoTool",
-    "register_all_tools",  
+    "SymPyTool",  # ✅ AJOUTÉ
+    "register_all_tools",
 ]

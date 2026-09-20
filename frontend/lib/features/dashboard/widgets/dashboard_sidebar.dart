@@ -35,20 +35,14 @@ class DashboardSidebar extends StatelessWidget {
             width: 1,
           ),
         ),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 8,
-                  offset: const Offset(2, 0),
-                ),
-              ],
       ),
       child: Column(
         children: [
           _buildLogo(isDark, compact),
-          const Divider(height: 1, color: AppColors.divider),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.divider,
+          ),
           _buildFixedMenu(isDark, provider, context, compact),
           Expanded(
             child: _buildSubjectsList(isDark, provider, subjects, context, compact),
@@ -61,11 +55,11 @@ class DashboardSidebar extends StatelessWidget {
   }
 
   Widget _buildLogo(bool isDark, bool compact) {
-    final size = compact ? 28.0 : 40.0;
-    final fontSize = compact ? 14.0 : 16.0;
+    final size = compact ? 20.0 : 26.0;
+    final fontSize = compact ? 14.0 : 15.0;
 
     return Container(
-      padding: EdgeInsets.symmetric(vertical: compact ? 14 : 20),
+      padding: EdgeInsets.symmetric(vertical: compact ? 14 : 18),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -73,8 +67,8 @@ class DashboardSidebar extends StatelessWidget {
             'assets/images/logo.svg',
             width: size,
             height: size,
-            colorFilter: const ColorFilter.mode(
-              AppColors.primary,
+            colorFilter: ColorFilter.mode(
+              isDark ? Colors.white : AppColors.textPrimary,
               BlendMode.srcIn,
             ),
           ),
@@ -83,9 +77,9 @@ class DashboardSidebar extends StatelessWidget {
             'E-learningAI',
             style: TextStyle(
               fontSize: fontSize,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               letterSpacing: -0.3,
-              color: isDark ? AppColors.textWhite : AppColors.primary,
+              color: isDark ? AppColors.textWhite : AppColors.textPrimary,
             ),
           ),
         ],
@@ -101,7 +95,7 @@ class DashboardSidebar extends StatelessWidget {
   ) {
     return Column(
       children: [
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         _SidebarItem(
           icon: Icons.home_outlined,
           selectedIcon: Icons.home_rounded,
@@ -111,7 +105,7 @@ class DashboardSidebar extends StatelessWidget {
           isSelected: provider.selectedIndex == 0,
           onTap: () => provider.selectTab(0),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _AddSubjectButton(
           isCompact: compact,
           isDark: isDark,
@@ -119,7 +113,7 @@ class DashboardSidebar extends StatelessWidget {
             _showAddSubjectDialog(context, provider);
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
@@ -128,7 +122,7 @@ class DashboardSidebar extends StatelessWidget {
                 'MATIÈRES',
                 style: TextStyle(
                   fontSize: compact ? 10 : 11,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textTertiary,
                   letterSpacing: 0.8,
                 ),
@@ -142,14 +136,16 @@ class DashboardSidebar extends StatelessWidget {
                       : Colors.black.withOpacity(0.05),
                 ),
               ),
-              const SizedBox(width: 8),
               if (provider.isLoading)
-                SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary.withOpacity(0.6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
             ],
@@ -159,7 +155,6 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 
-  // ✅ CORRECTION : Ajouter un ScrollController
   Widget _buildSubjectsList(
     bool isDark,
     DashboardProvider provider,
@@ -172,11 +167,11 @@ class DashboardSidebar extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Center(
           child: SizedBox(
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primary,
+              strokeWidth: 1.5,
+              color: AppColors.textTertiary,
             ),
           ),
         ),
@@ -188,24 +183,20 @@ class DashboardSidebar extends StatelessWidget {
           ? const SizedBox.shrink()
           : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(Icons.inbox_outlined, size: 15, color: AppColors.textTertiary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Aucune matière',
-                    style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                  ),
-                ],
+              child: Text(
+                'Aucune matière',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                ),
               ),
             );
     }
 
-    // ✅ AJOUTER UN SCROLLCONTROLLER POUR LE SCROLLBAR
     final ScrollController scrollController = ScrollController();
 
     return Scrollbar(
-      controller: scrollController, // ✅ Attacher le controller
+      controller: scrollController,
       thumbVisibility: false,
       radius: const Radius.circular(8),
       child: ListView.builder(
@@ -218,9 +209,10 @@ class DashboardSidebar extends StatelessWidget {
             subject: subject,
             isCompact: compact,
             isDark: isDark,
-            isSelected: provider.selectedSubjectSlug == subject.slug && provider.selectedIndex == 0,
+            isSelected: provider.selectedSubjectSlug == subject.slug &&
+                provider.selectedIndex == 0,
             onTap: () {
-              provider.selectSubject(subject.slug);
+              provider.selectSubject(subject); // ✅ Accepte un Subject
             },
             onEdit: () {
               _showEditSubjectDialog(context, provider, subject);
@@ -245,7 +237,9 @@ class DashboardSidebar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Container(
             height: 1,
-            color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.05),
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.05),
           ),
         ),
         const SizedBox(height: 4),
@@ -281,6 +275,10 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // DIALOGUES
+  // ============================================================
+
   void _showAddSubjectDialog(BuildContext context, DashboardProvider provider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -294,11 +292,15 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 
-  void _showEditSubjectDialog(BuildContext context, DashboardProvider provider, Subject subject) {
+  // ✅ Dialog d'édition épuré (juste le nom)
+  void _showEditSubjectDialog(
+    BuildContext context,
+    DashboardProvider provider,
+    Subject subject,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final TextEditingController nameController = TextEditingController(text: subject.name);
-    final TextEditingController iconController = TextEditingController(text: subject.icon ?? '');
-    final TextEditingController colorController = TextEditingController(text: subject.color ?? '');
+    final TextEditingController nameController =
+        TextEditingController(text: subject.name);
     bool isLoading = false;
 
     showDialog(
@@ -308,214 +310,86 @@ class DashboardSidebar extends StatelessWidget {
         builder: (context, setState) => Dialog(
           backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          elevation: 0,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.edit, color: Colors.white, size: 28),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'Modifier la matière',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Renommer la matière',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 TextField(
                   controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nom de la matière *',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 2,
-                      ),
-                    ),
-                    prefixIcon: const Icon(Icons.school_outlined),
-                    filled: true,
-                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
-                  ),
                   style: TextStyle(
+                    fontSize: 15,
                     color: isDark ? AppColors.textWhite : AppColors.textPrimary,
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  '😊 Icône',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: iconController,
                   decoration: InputDecoration(
-                    hintText: 'Entrez un emoji (ex: 📚)',
+                    labelText: 'Nom',
+                    hintText: subject.name,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  '🎨 Couleur',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: colorController,
-                  decoration: InputDecoration(
-                    hintText: 'Entrez une couleur hex (ex: #4CAF50)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isDark ? AppColors.borderDark : AppColors.border,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? AppColors.surfaceDark : AppColors.surface,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: isLoading ? null : () => Navigator.pop(context),
-                      child: Text(
+                      onPressed:
+                          isLoading ? null : () => Navigator.pop(context),
+                      child: const Text(
                         'Annuler',
-                        style: TextStyle(
-                          color: AppColors.textTertiary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: TextStyle(color: AppColors.textTertiary),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: isLoading ? null : () async {
-                        if (nameController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Veuillez entrer un nom'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() => isLoading = true);
-                        final success = await provider.updateSubject(
-                          subjectId: subject.id,
-                          name: nameController.text.trim(),
-                          icon: iconController.text.trim().isEmpty ? null : iconController.text.trim(),
-                          color: colorController.text.trim().isEmpty ? null : colorController.text.trim(),
-                        );
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              success ? '✅ Matière modifiée avec succès' : '❌ ${provider.error ?? "Erreur"}',
-                            ),
-                            backgroundColor: success ? AppColors.success : AppColors.error,
-                          ),
-                        );
-                      },
-                      icon: isLoading
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (nameController.text.trim().isEmpty) {
+                                return;
+                              }
+                              setState(() => isLoading = true);
+                              final success = await provider.updateSubject(
+                                subjectId: subject.id,
+                                name: nameController.text.trim(),
+                              );
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    success
+                                        ? 'Matière modifiée'
+                                        : 'Erreur : ${provider.error ?? "Inconnue"}',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                      child: isLoading
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.save, size: 18),
-                      label: Text(isLoading ? 'Enregistrement...' : 'Enregistrer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
+                          : const Text('Enregistrer'),
                     ),
                   ],
                 ),
@@ -527,7 +401,12 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 
-  void _showDeleteSubjectDialog(BuildContext context, DashboardProvider provider, Subject subject) {
+  // ✅ Dialog de suppression épuré
+  void _showDeleteSubjectDialog(
+    BuildContext context,
+    DashboardProvider provider,
+    Subject subject,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isLoading = false;
 
@@ -540,125 +419,58 @@ class DashboardSidebar extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.warning_amber_rounded,
-                    color: AppColors.error,
-                    size: 24,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Supprimer',
-                style: TextStyle(
-                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                ),
-              ),
-            ],
+          title: Text(
+            'Supprimer la matière',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+            ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Voulez-vous vraiment supprimer la matière',
-                style: TextStyle(
-                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '"${subject.name}" ?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.error.withOpacity(0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: AppColors.error,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        subject.isDefault
-                            ? 'Cette matière est une matière par défaut. Elle sera retirée de votre liste mais restera disponible pour les autres utilisateurs.'
-                            : 'Cette action est irréversible.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.error.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          content: Text(
+            'Êtes-vous sûr de vouloir supprimer "${subject.name}" ?',
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? AppColors.textWhite : AppColors.textSecondary,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: Text(
+              child: const Text(
                 'Annuler',
                 style: TextStyle(color: AppColors.textTertiary),
               ),
             ),
-            ElevatedButton(
-              onPressed: isLoading ? null : () async {
-                setState(() => isLoading = true);
-                final success = await provider.deleteSubject(subject.id);
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      success ? '✅ Matière supprimée avec succès' : '❌ ${provider.error ?? "Erreur"}',
-                    ),
-                    backgroundColor: success ? AppColors.success : AppColors.error,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+            TextButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      setState(() => isLoading = true);
+                      final success = await provider.deleteSubject(subject.id);
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? 'Matière supprimée'
+                                : 'Erreur : ${provider.error ?? "Inconnue"}',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
               child: isLoading
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Supprimer'),
+                  : const Text(
+                      'Supprimer',
+                      style: TextStyle(color: AppColors.error),
+                    ),
             ),
           ],
         ),
@@ -697,12 +509,19 @@ class _SidebarItem extends StatefulWidget {
 class _SidebarItemState extends State<_SidebarItem> {
   @override
   Widget build(BuildContext context) {
-    final textColor = widget.isDark ? AppColors.textWhite : AppColors.textSecondary;
+    final textColor =
+        widget.isDark ? AppColors.textWhite : AppColors.textSecondary;
+    final selectedColor =
+        widget.isDark ? Colors.white : AppColors.textPrimary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1.5),
       child: Material(
-        color: widget.isSelected ? AppColors.primary.withOpacity(0.08) : Colors.transparent,
+        color: widget.isSelected
+            ? (widget.isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.04))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: widget.onTap,
@@ -719,8 +538,10 @@ class _SidebarItemState extends State<_SidebarItem> {
             child: Row(
               children: [
                 Icon(
-                  widget.isSelected ? (widget.selectedIcon ?? widget.icon) : widget.icon,
-                  color: widget.isSelected ? AppColors.primary : textColor,
+                  widget.isSelected
+                      ? (widget.selectedIcon ?? widget.icon)
+                      : widget.icon,
+                  color: widget.isSelected ? selectedColor : textColor,
                   size: 20,
                 ),
                 SizedBox(width: widget.isCompact ? 10 : 14),
@@ -729,22 +550,14 @@ class _SidebarItemState extends State<_SidebarItem> {
                     widget.label,
                     style: TextStyle(
                       fontSize: widget.isCompact ? 12 : 14,
-                      fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: widget.isSelected ? AppColors.primary : textColor,
+                      fontWeight: widget.isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: widget.isSelected ? selectedColor : textColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (widget.isSelected)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 4,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -754,6 +567,7 @@ class _SidebarItemState extends State<_SidebarItem> {
   }
 }
 
+// ✅ Item de matière épuré (sans emoji ni couleur)
 class _SubjectItem extends StatelessWidget {
   const _SubjectItem({
     required this.subject,
@@ -775,18 +589,25 @@ class _SubjectItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? AppColors.textWhite : AppColors.textSecondary;
-    final displayName = subject.icon != null ? '${subject.icon} ${subject.name}' : subject.name;
+    final textColor =
+        isDark ? AppColors.textWhite : AppColors.textSecondary;
+    final selectedColor = isDark ? Colors.white : AppColors.textPrimary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
-        color: isSelected ? AppColors.primary.withOpacity(0.08) : Colors.transparent,
+        color: isSelected
+            ? (isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.04))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
-          hoverColor: isDark ? Colors.white.withOpacity(0.045) : Colors.black.withOpacity(0.035),
+          hoverColor: isDark
+              ? Colors.white.withOpacity(0.045)
+              : Colors.black.withOpacity(0.035),
           mouseCursor: SystemMouseCursors.click,
           child: Padding(
             padding: EdgeInsets.symmetric(
@@ -795,53 +616,70 @@ class _SubjectItem extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: isCompact ? 6 : 8,
-                  height: isCompact ? 6 : 8,
-                  decoration: BoxDecoration(
-                    color: subject.colorValue,
-                    shape: BoxShape.circle,
+                // ✅ Juste le nom, pas de point coloré ni d'emoji
+                Expanded(
+                  child: Text(
+                    subject.displayName,
+                    style: TextStyle(
+                      fontSize: isCompact ? 12 : 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? selectedColor : textColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                SizedBox(width: isCompact ? 10 : 14),
-                Expanded(
-                  child: Tooltip(
-                    message: displayName,
-                    waitDuration: const Duration(milliseconds: 500),
-                    child: Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: isCompact ? 12 : 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? AppColors.primary : textColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                if (!isCompact && isSelected)
+                  Container(
+                    width: 4,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
                 if (!isCompact)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 18, color: textColor.withOpacity(0.7)),
-                    color: isDark ? Colors.grey[800] : Colors.white,
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                      color: textColor.withOpacity(0.6),
+                    ),
+                    color: isDark ? AppColors.surfaceDark : Colors.white,
                     tooltip: 'Options',
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(
+                        color:
+                            isDark ? AppColors.borderDark : AppColors.border,
+                      ),
+                    ),
                     onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          onEdit();
-                          break;
-                        case 'delete':
-                          onDelete();
-                          break;
-                      }
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 18, color: AppColors.primary),
-                            SizedBox(width: 8),
-                            Text('Modifier'),
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: isDark
+                                  ? AppColors.textWhite
+                                  : AppColors.textPrimary,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Renommer',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark
+                                    ? AppColors.textWhite
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -849,9 +687,19 @@ class _SubjectItem extends StatelessWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, size: 18, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('Supprimer'),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: AppColors.error,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Supprimer',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.error,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -866,6 +714,7 @@ class _SubjectItem extends StatelessWidget {
   }
 }
 
+// ✅ Bouton d'ajout épuré (sans dégradé)
 class _AddSubjectButton extends StatefulWidget {
   const _AddSubjectButton({
     required this.isCompact,
@@ -887,90 +736,62 @@ class _AddSubjectButtonState extends State<_AddSubjectButton> {
   @override
   Widget build(BuildContext context) {
     final compact = widget.isCompact;
-    final horizontalPadding = compact ? 8.0 : 12.0;
-    final verticalPadding = compact ? 8.0 : 10.0;
-    final iconSize = compact ? 16.0 : 18.0;
-    final fontSize = compact ? 12.0 : 14.0;
-    final arrowSize = compact ? 12.0 : 14.0;
-    final boxHeight = compact ? 24.0 : 28.0;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 12,
+        vertical: 2,
+      ),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovering = true),
         onExit: (_) => setState(() => _hovering = false),
-        child: AnimatedScale(
-          scale: _hovering ? 1.015 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onTap,
-              borderRadius: BorderRadius.circular(10),
-              splashColor: Colors.white.withOpacity(0.2),
-              highlightColor: Colors.white.withOpacity(0.1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 12 : 16,
-                  vertical: verticalPadding,
+        child: Material(
+          color: _hovering
+              ? (widget.isDark
+                  ? Colors.white.withOpacity(0.06)
+                  : Colors.black.withOpacity(0.04))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 10 : 12,
+                vertical: compact ? 8 : 10,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: widget.isDark
+                      ? AppColors.borderDark
+                      : AppColors.border,
                 ),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(_hovering ? 0.35 : 0.25),
-                      blurRadius: _hovering ? (compact ? 12 : 16) : (compact ? 8 : 12),
-                      offset: const Offset(0, 3),
-                      spreadRadius: 0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.add,
+                    size: compact ? 16 : 18,
+                    color:
+                        widget.isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Ajouter une matière',
+                      style: TextStyle(
+                        fontSize: compact ? 12 : 13,
+                        fontWeight: FontWeight.w500,
+                        color: widget.isDark
+                            ? AppColors.textWhite
+                            : AppColors.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: boxHeight,
-                      height: boxHeight,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: iconSize,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Ajouter une matière',
-                        style: TextStyle(
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.2,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      width: compact ? 20 : 24,
-                      height: compact ? 20 : 24,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: arrowSize,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

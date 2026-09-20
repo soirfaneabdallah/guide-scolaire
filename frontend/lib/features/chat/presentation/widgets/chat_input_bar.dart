@@ -2,9 +2,8 @@
 
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_constants.dart';
 
-/// Barre de saisie du chat avec bouton d'envoi.
+/// Barre de saisie du chat simple (sans mode vidéo).
 class ChatInputBar extends StatefulWidget {
   const ChatInputBar({
     super.key,
@@ -13,8 +12,13 @@ class ChatInputBar extends StatefulWidget {
     this.isLoading = false,
   });
 
+  /// Callback pour envoyer une question
   final void Function(String) onSend;
+
+  /// Callback quand l'utilisateur tape
   final VoidCallback? onTyping;
+
+  /// État de chargement
   final bool isLoading;
 
   @override
@@ -24,6 +28,12 @@ class ChatInputBar extends StatefulWidget {
 class _ChatInputBarState extends State<ChatInputBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -43,71 +53,104 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final canSend = _controller.text.trim().isNotEmpty && !widget.isLoading;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, -4),
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.border,
+            width: 1,
           ),
-        ],
+        ),
       ),
       child: SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            // ============================================================
+            // CHAMP DE SAISIE
+            // ============================================================
             Expanded(
               child: Container(
+                constraints: const BoxConstraints(minHeight: 44),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                  color: isDark ? AppColors.background : AppColors.background,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.border,
+                  ),
                 ),
                 child: TextField(
                   controller: _controller,
                   focusNode: _focusNode,
                   onChanged: (_) => widget.onTyping?.call(),
                   onSubmitted: (_) => _handleSend(),
-                  decoration: const InputDecoration(
-                    hintText: 'Tape ta question...',
-                    hintStyle: TextStyle(
-                      color: AppColors.textDisabled,
-                      fontSize: 15,
+                  maxLines: 5,
+                  minLines: 1,
+                  enabled: !widget.isLoading,
+                  textInputAction: TextInputAction.send,
+                  decoration: InputDecoration(
+                    hintText: widget.isLoading
+                        ? 'Envoi en cours...'
+                        : 'Pose ta question...',
+                    hintStyle: const TextStyle(
+                      color: AppColors.textTertiary,
+                      fontSize: 14,
                     ),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
                   ),
-                  textInputAction: TextInputAction.send,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Semantics(
-              label: 'Envoyer le message',
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _controller.text.trim().isEmpty || widget.isLoading
-                      ? AppColors.textDisabled
-                      : AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: widget.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+
+            // ============================================================
+            // BOUTON ENVOI (flèche vers le haut)
+            // ============================================================
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: canSend
+                    ? (isDark ? Colors.white : AppColors.textPrimary)
+                    : (isDark ? AppColors.borderDark : AppColors.border),
+                shape: BoxShape.circle,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: canSend ? _handleSend : null,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Center(
+                    child: widget.isLoading
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: isDark
+                                  ? AppColors.textPrimary
+                                  : Colors.white,
+                            ),
+                          )
+                        : Icon(
+                            Icons.arrow_upward_rounded,
+                            color: canSend
+                                ? (isDark
+                                    ? AppColors.textPrimary
+                                    : Colors.white)
+                                : AppColors.textTertiary,
+                            size: 20,
                           ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white),
-                  onPressed: _handleSend,
-                  tooltip: 'Envoyer',
+                  ),
                 ),
               ),
             ),

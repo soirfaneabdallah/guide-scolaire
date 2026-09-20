@@ -52,7 +52,9 @@ class IAClient:
         payload = {
             "question": question,
             "level": level,
-            "turn_number": turn_number
+            "turn_number": turn_number,
+            "history": history or [], 
+            
         }
         
         if subject:

@@ -1,4 +1,7 @@
-# backend/app/api/v1/routes/chat.py
+# ============================================================
+# FICHIER: backend/app/api/v1/routes/chat.py
+# DESCRIPTION: Routes de chat avec contexte et mémoire
+# ============================================================
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -44,24 +47,33 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # CRITÈRE 1: Mots-clés forts (agent obligatoire)
     # ============================================================
     strong_keywords = [
-        # Mathématiques avancées
-        "primitive", "intégrale", "dérivée", "dériver", 
-        "équation différentielle", "limite", "suite",
+        # Mathématiques avancées (avec et sans accents)
+        "primitive", "intégrale", "integrale",
+        "derivee", "deriver", "dérivée", "dériver",
+        "equation differentielle", "équation différentielle",
+        "limite", "suite",
         "fonction exponentielle", "logarithme", "trigonométrie",
         "vecteur", "matrice", "complexe", "nombre complexe",
+        "exponentielle", "logarithme", "log", "ln",
+        "sinus", "cosinus", "tangente",
         
         # Analyse et raisonnement
-        "démontre", "prouve", "démonstration", "raisonnement",
-        "justifie", "explique pourquoi", "montre que",
-        "étudie", "analyse", "compare", "synthèse",
+        "demontre", "démontre", "prouve", "demonstration", "démonstration",
+        "raisonnement", "justifie", "explique pourquoi", "montre que",
+        "etudie", "étudie", "analyse", "compare", "synthese", "synthèse",
         
         # Recherche d'informations
         "recherche", "trouve", "cherche", "document", "source",
-        "théorème", "loi", "principe", "règle",
+        "theoreme", "théorème", "loi", "principe", "regle", "règle",
         
         # Mots-clés complexes
-        "étape par étape", "pas à pas", "détaillé",
-        "approfondi", "complexe", "difficile",
+        "etape par etape", "étape par étape", "pas a pas", "pas à pas",
+        "detaille", "détaillé", "approfondi", "complexe", "difficile",
+        
+        # Mots-clés mathématiques supplémentaires
+        "integral", "integrales", "derive", "derivees", "derivee",
+        "equation", "équation", "resolution", "résolution",
+        "calculer", "calcule", "calcul",
     ]
     
     for keyword in strong_keywords:
@@ -70,14 +82,15 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
             return True
     
     # ============================================================
-    # CRITÈRE 2: Patterns mathématiques
+    # CRITÈRE 2: Patterns mathématiques (avec accents)
     # ============================================================
     math_patterns = [
         r'f\(x\)\s*=',           # f(x) =
         r'g\(x\)\s*=',           # g(x) =
-        r'\bderiv[eé]e\b',       # dérivée
+        r'\bderiv[ée]e\b',       # dérivée (avec accent)
+        r'\bderivee\b',          # derivee (sans accent)
         r'\bprimitive\b',        # primitive
-        r'\bintegral[eé]\b',     # intégrale
+        r'\bintegral[ée]\b',     # intégrale
         r'\bln\s*\(',            # ln(
         r'\be\^',                # e^
         r'\bexp\s*\(',           # exp(
@@ -89,11 +102,15 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
         r'\bsomme\b',            # somme
         r'\bproduit\b',          # produit
         r'\bracine\b',           # racine
-        r'\bcar[ré]e\b',         # carré
+        r'\bcar[ée]\b',          # carré/carre
         r'\bcube\b',             # cube
         r'\bpuissance\b',        # puissance
         r'\bexposant\b',         # exposant
         r'\blogarithme\b',       # logarithme
+        r'\b[0-9]+\s*[=+*/^()]', # nombres avec symboles
+        r'\bcalculer\b',         # calculer
+        r'\brésoudre\b',         # résoudre
+        r'\bresoudre\b',         # resoudre
     ]
     
     for pattern in math_patterns:
@@ -104,9 +121,8 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # ============================================================
     # CRITÈRE 3: Niveau avancé
     # ============================================================
-    advanced_levels = ["Terminale", "Première", "Seconde", "Licence", "Master"]
-    if any(lvl in level for lvl in advanced_levels):
-        # Vérifier que la question n'est pas trop simple
+    advanced_levels = ["terminale", "première", "premiere", "seconde", "licence", "master"]
+    if any(lvl in level.lower() for lvl in advanced_levels):
         if len(question.split()) > 5:
             logger.info(f"🔍 Agent déclenché par niveau avancé: {level}")
             return True
@@ -123,8 +139,8 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # CRITÈRE 5: Mots-clés faibles (agent recommandé)
     # ============================================================
     weak_keywords = [
-        "explique", "comment", "pourquoi", "quel est",
-        "calcule", "résous", "trouve", "détermine",
+        "explique", "expliquer", "comment", "pourquoi", "quel est",
+        "calcule", "calculer", "résous", "resous", "trouve", "determine", "détermine",
         "sais-tu", "peux-tu", "pourrais-tu",
         "j'aimerais", "je voudrais",
     ]
@@ -137,9 +153,7 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # ============================================================
     # CRITÈRE 6: Questions avec des nombres ou formules
     # ============================================================
-    # Vérifier si la question contient des nombres
     has_numbers = bool(re.search(r'\d', question))
-    # Vérifier si la question contient des symboles mathématiques
     has_math_symbols = bool(re.search(r'[=+*/^()]', question))
     
     if has_numbers and has_math_symbols and len(question.split()) > 5:
@@ -149,9 +163,8 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # ============================================================
     # CRITÈRE 7: Mots de la question précédente
     # ============================================================
-    # Vérifier si l'utilisateur pose une question de suivi
     follow_up_patterns = [
-        r'primitive', r'intégrale', r'dérivée',
+        r'primitive', r'intégrale', r'integrale', r'dérivée', r'derivee',
         r'donc', r'alors', r'ensuite',
         r'et si', r'mais', r'pourquoi',
     ]
@@ -165,7 +178,22 @@ def should_use_agent(question: str, level: str = "3ème") -> bool:
     # DÉFAUT: Ne pas utiliser l'agent
     # ============================================================
     logger.info("ℹ️ Question simple, utilisation du LLM standard")
-    return False
+    return True
+
+
+
+def format_chat_history(messages: list, limit: int = 10) -> List[Dict[str, str]]:
+    """
+    Formate l'historique des messages pour le service IA.
+    """
+    history = []
+    for msg in messages[-limit:]:
+        role = "user" if msg.is_user else "assistant"
+        history.append({
+            "role": role,
+            "content": msg.content
+        })
+    return history
 
 
 # ============================================================
@@ -182,6 +210,7 @@ async def ask_question(
     Endpoint pour poser une question à l'assistant IA.
     Utilise l'agent pour les questions complexes,
     le LLM simple pour les questions rapides.
+    Le contexte de la conversation est conservé.
     """
     chat_repo = ChatRepository(db)
     subject_repo = SubjectRepository(db)
@@ -213,7 +242,18 @@ async def ask_question(
                 db.commit()
                 db.refresh(subject)
 
-        # ✅ 2. Sauvegarder la question de l'utilisateur
+        # ✅ 2. Récupérer l'historique récent (pour le contexte)
+        recent_messages = chat_repo.get_messages_for_subject(
+            user_id=current_user.id,
+            subject_id=subject.id,
+            limit=10
+        )
+        
+        history_formatted = format_chat_history(recent_messages)
+        
+        logger.info(f"📚 Historique: {len(history_formatted)} messages")
+
+        # ✅ 3. Sauvegarder la question de l'utilisateur
         chat_repo.save_message(
             user_id=current_user.id,
             subject_id=subject.id,
@@ -227,7 +267,7 @@ async def ask_question(
         model_used = "unknown"
         processing_time = 0
 
-        # ✅ 3. Décider si on utilise l'agent ou le LLM simple
+        # ✅ 4. Décider si on utilise l'agent ou le LLM simple
         use_agent = should_use_agent(request.question, request.level)
         
         logger.info(f"📌 Question: {request.question[:50]}...")
@@ -235,8 +275,8 @@ async def ask_question(
         logger.info(f"🤖 Utiliser l'agent: {use_agent}")
         
         if use_agent:
-            # ✅ UTILISER L'AGENT
-            logger.info("🧠 Lancement de l'agent...")
+            # ✅ UTILISER L'AGENT AVEC CONTEXTE
+            logger.info("🧠 Lancement de l'agent avec contexte...")
             
             try:
                 agent_result = await agent_orchestrator.execute(
@@ -244,6 +284,10 @@ async def ask_question(
                     user_id=current_user.id,
                     subject=subject.name if subject else None,
                     level=request.level,
+                    context={
+                        "chat_history": history_formatted,
+                        "last_messages": recent_messages
+                    },
                     max_iterations=10
                 )
                 
@@ -251,7 +295,7 @@ async def ask_question(
                 model_used = f"agent_{agent_result.get('status', 'unknown')}"
                 processing_time = (time.time() - start_time) * 1000
                 
-                logger.info(f"✅ Agent terminé: {agent_result.get('iterations', 0)} itérations, status: {agent_result.get('status', 'unknown')}")
+                logger.info(f"✅ Agent terminé: {agent_result.get('iterations', 0)} itérations")
                 
                 # ✅ Si l'agent a échoué, fallback sur le LLM
                 if "Erreur" in answer or "pas pu" in answer:
@@ -264,18 +308,24 @@ async def ask_question(
                 use_agent = False
         
         if not use_agent:
-            # ✅ UTILISER LE LLM SIMPLE
+            # ✅ UTILISER LE LLM SIMPLE AVEC CONTEXTE
             try:
                 ia_client = IAClient()
                 
                 result = await ia_client.ask(
                     question=request.question,
                     level=request.level,
+                    subject=subject.name if subject else None,
+                    history=history_formatted,  # ✅ CONTEXTE TRANSMIS
+                    session_id=f"user_{current_user.id}_subject_{subject.id}",
+                    turn_number=len(recent_messages) + 1
                 )
                 
                 processing_time = (time.time() - start_time) * 1000
                 answer = result.get("response") or result.get("answer") or "Je n'ai pas pu générer une réponse."
                 model_used = result.get("model_used") or result.get("model") or "qwen"
+                
+                logger.info(f"✅ LLM simple avec contexte: {len(history_formatted)} messages d'historique")
                 
             except httpx.TimeoutException:
                 logger.error("⏰ Timeout du service IA")
@@ -295,7 +345,7 @@ async def ask_question(
                 model_used = "error"
                 processing_time = 0
 
-        # ✅ 4. Sauvegarder la réponse
+        # ✅ 5. Sauvegarder la réponse
         chat_repo.save_message(
             user_id=current_user.id,
             subject_id=subject.id,
@@ -306,7 +356,7 @@ async def ask_question(
             processing_time=int(processing_time),
         )
 
-        # ✅ 5. Retourner la réponse
+        # ✅ 6. Retourner la réponse
         return AskResponse(
             answer=answer,
             level=request.level,

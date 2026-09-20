@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_client.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../chat/domain/entities/message.dart';
 import '../../chat/presentation/widgets/pro_message_bubble.dart';
 import '../../chat/repositories/chat_repository.dart';
@@ -74,7 +73,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  LOAD CHAT HISTORY – NO AUTO‑SCROLL
+  //  LOAD CHAT HISTORY
   // ============================================================
 
   void _loadChatHistory() {
@@ -163,7 +162,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  SEND MESSAGE – NO AUTO‑SCROLL
+  //  SEND MESSAGE
   // ============================================================
 
   void _sendMessage() {
@@ -191,14 +190,15 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
     });
 
     final apiClient = context.read<ApiClient>();
-    final authProvider = context.read<AuthProvider>();
     final chatRepository = ChatRepository(apiClient: apiClient);
-    final userId = authProvider.userId;
     final subjectId = subject?.id ?? 1;
 
     chatRepository
-        .sendMessage(text, userId: userId, subjectId: subjectId)
-        .then((response) {
+        .sendMessage(
+          question: text,
+          subjectId: subjectId,
+        )
+        .then((responseMessage) {
       dashboardProvider.refreshChatHistory(subjectId).then((_) {
         final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
         for (final msg in messages) {
@@ -215,7 +215,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
 
       final errorMessage = Message(
         id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-        content: '❌ Erreur: ${error.toString()}',
+        content: 'Erreur : ${error.toString()}',
         isUser: false,
         timestamp: DateTime.now(),
         isError: true,
@@ -242,7 +242,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  SCROLL TO BOTTOM (MANUAL)
+  //  SCROLL TO BOTTOM
   // ============================================================
 
   void _scrollToBottomInstant() {
@@ -271,7 +271,6 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
         final messages = dashboardProvider.getMessagesForSubject(effectiveSlug);
         final isLoading = dashboardProvider.isLoading || _isInitialLoad;
 
-        // Start typewriter for new assistant messages
         for (final msg in messages) {
           if (!msg.isUser &&
               !_typedContents.containsKey(msg.id) &&
@@ -299,7 +298,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
                         Positioned(
                           bottom: 20,
                           right: 20,
-                          child: _buildScrollToBottomButton(),
+                          child: _buildScrollToBottomButton(isDark),
                         ),
                     ],
                   ),
@@ -362,7 +361,8 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
             _buildDateSeparator(group.date, isDark),
             const SizedBox(height: 8),
             ...group.messages.map((message) {
-              final displayContent = _typedContents[message.id] ?? message.content;
+              final displayContent =
+                  _typedContents[message.id] ?? message.content;
               final displayMessage = message.copyWith(content: displayContent);
               return ProMessageBubble(
                 message: displayMessage,
@@ -410,7 +410,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  HEADER
+  //  HEADER ÉPURÉ
   // ============================================================
 
   Widget _buildHeader(
@@ -436,11 +436,12 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
       ),
       child: Row(
         children: [
+          // ✅ Point de statut sobre
           Container(
-            width: 10,
-            height: 10,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
-              color: _isSending ? AppColors.warning : AppColors.success,
+              color: isDark ? Colors.white : AppColors.textPrimary,
               shape: BoxShape.circle,
             ),
           ),
@@ -450,22 +451,26 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
               subject?.name ?? 'Accueil',
               style: TextStyle(
                 fontSize: widget.isMobile ? 16 : 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                letterSpacing: -0.2,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           if (isLoading)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
             ),
           if (messages.isNotEmpty && !isLoading) ...[
             Text(
-              '${messages.length} messages',
-              style: TextStyle(
+              '${messages.length} message${messages.length > 1 ? 's' : ''}',
+              style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textTertiary,
               ),
@@ -485,7 +490,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  EMPTY STATE
+  //  EMPTY STATE ÉPURÉ
   // ============================================================
 
   Widget _buildEmptyState(Subject? subject) {
@@ -497,43 +502,24 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 20,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.chat_outlined,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 24),
             Text(
               'Pose ta première question',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Sur ${subject?.name ?? "cette matière"}',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -562,7 +548,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  TYPING INDICATOR
+  //  TYPING INDICATOR ÉPURÉ
   // ============================================================
 
   Widget _buildTypingIndicator() {
@@ -575,11 +561,11 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
       child: Row(
         children: [
           SizedBox(
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primary,
+              strokeWidth: 1.5,
+              color: isDark ? Colors.white : AppColors.textPrimary,
             ),
           ),
           const SizedBox(width: 8),
@@ -587,7 +573,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
             "L'assistant écrit...",
             style: TextStyle(
               fontSize: 12,
-              color: isDark ? AppColors.textWhite : AppColors.textSecondary,
+              color: isDark ? AppColors.textSecondary : AppColors.textSecondary,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -597,36 +583,39 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  SCROLL TO BOTTOM BUTTON
+  //  SCROLL TO BOTTOM ÉPURÉ
   // ============================================================
 
-  Widget _buildScrollToBottomButton() {
+  Widget _buildScrollToBottomButton(bool isDark) {
     return GestureDetector(
       onTap: _scrollToBottomInstant,
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: isDark ? AppColors.surfaceDark : Colors.white,
           shape: BoxShape.circle,
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.border,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: const Icon(
+        child: Icon(
           Icons.arrow_downward_rounded,
-          color: Colors.white,
-          size: 24,
+          color: isDark ? Colors.white : AppColors.textPrimary,
+          size: 20,
         ),
       ),
     );
   }
 
   // ============================================================
-  //  SUGGESTIONS
+  //  SUGGESTIONS ÉPURÉES
   // ============================================================
 
   Widget _buildSuggestions() {
@@ -684,7 +673,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
   }
 
   // ============================================================
-  //  INPUT BAR
+  //  INPUT BAR ÉPURÉE
   // ============================================================
 
   Widget _buildInputBar(DashboardProvider dashboardProvider) {
@@ -707,6 +696,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
       child: SafeArea(
         child: Row(
           children: [
+            // Champ de saisie
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -725,7 +715,7 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
                     hintText: _isSending
                         ? 'Envoi en cours...'
                         : 'Pose ta question...',
-                    hintStyle: TextStyle(
+                    hintStyle: const TextStyle(
                       color: AppColors.textTertiary,
                       fontSize: 14,
                     ),
@@ -739,16 +729,12 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
               ),
             ),
             const SizedBox(width: 8),
+
+            // ✅ Bouton Envoi épuré
             Container(
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
+                color: isDark ? Colors.white : AppColors.textPrimary,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                  ),
-                ],
               ),
               child: Material(
                 color: Colors.transparent,
@@ -757,11 +743,22 @@ class _DashboardSubjectChatState extends State<DashboardSubjectChat>
                   borderRadius: BorderRadius.circular(30),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Icon(
-                      _isSending ? Icons.hourglass_empty : Icons.send_rounded,
-                      color: _isSending ? Colors.grey : Colors.white,
-                      size: 20,
-                    ),
+                    child: _isSending
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: isDark
+                                  ? AppColors.textPrimary
+                                  : Colors.white,
+                            ),
+                          )
+                        : Icon(
+                            Icons.arrow_upward_rounded,
+                            color: isDark ? AppColors.textPrimary : Colors.white,
+                            size: 20,
+                          ),
                   ),
                 ),
               ),
@@ -814,7 +811,7 @@ class _MessageGroup {
 }
 
 // ============================================================
-//  QUICK SUGGESTION WIDGET
+//  QUICK SUGGESTION ÉPURÉE
 // ============================================================
 
 class _QuickSuggestion extends StatelessWidget {
@@ -833,33 +830,21 @@ class _QuickSuggestion extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark ? Colors.grey[800] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+            color: isDark ? AppColors.borderDark : AppColors.border,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 8,
-            ),
-          ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+          ),
         ),
       ),
     );

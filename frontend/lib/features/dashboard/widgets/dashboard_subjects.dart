@@ -4,15 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../../../core/constants/app_colors.dart';
-import 'create_subject_dialog.dart'; // ✅ Le nouveau dialogue
+import 'create_subject_dialog.dart';
 
 class DashboardSubjects extends StatefulWidget {
   const DashboardSubjects({
     super.key,
     this.isMobile = false,
+    this.onSubjectSelected,
   });
 
   final bool isMobile;
+  final Function(Subject)? onSubjectSelected;
 
   @override
   State<DashboardSubjects> createState() => _DashboardSubjectsState();
@@ -70,28 +72,37 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
     );
   }
 
+  // ============================================================
+  //  HEADER ÉPURÉ
+  // ============================================================
+
   Widget _buildHeader(DashboardProvider provider, bool isDark) {
     return Row(
       children: [
         Text(
-          '📚 Mes matières',
+          'Mes matières',
           style: TextStyle(
             fontSize: widget.isMobile ? 18 : 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
             color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
         const Spacer(),
         if (!provider.isLoading)
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 24),
-            color: AppColors.primary,
+            icon: const Icon(Icons.add, size: 22),
+            color: isDark ? Colors.white : AppColors.textPrimary,
             onPressed: () => _showCreateSubjectDialog(context),
             tooltip: 'Ajouter une matière',
           ),
       ],
     );
   }
+
+  // ============================================================
+  //  ÉTATS
+  // ============================================================
 
   Widget _buildLoadingState() {
     return Container(
@@ -119,34 +130,36 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
         children: [
           Icon(
             Icons.school_outlined,
-            size: 64,
-            color: AppColors.textTertiary.withOpacity(0.3),
+            size: 48,
+            color: AppColors.textTertiary,
           ),
           const SizedBox(height: 16),
           Text(
             'Aucune matière pour le moment',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
               color: isDark ? AppColors.textWhite : AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Ajoute ta première matière pour commencer',
-            style: TextStyle(fontSize: 14, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
+          OutlinedButton.icon(
             onPressed: () => _showCreateSubjectDialog(context),
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, size: 18),
             label: const Text('Ajouter une matière'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: isDark ? Colors.white : AppColors.textPrimary,
+              side: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.border,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
@@ -155,14 +168,22 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
     );
   }
 
+  // ============================================================
+  //  GRILLE DE MATIÈRES
+  // ============================================================
+
   Widget _buildSubjectsGrid(
     List<Subject> subjects,
     DashboardProvider provider,
     bool isDark,
   ) {
     final crossAxisCount = widget.isMobile
-        ? 3
-        : MediaQuery.of(context).size.width > 600 ? 4 : 3;
+        ? 2
+        : MediaQuery.of(context).size.width > 900
+            ? 4
+            : MediaQuery.of(context).size.width > 600
+                ? 3
+                : 2;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -171,7 +192,7 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: widget.isMobile ? 0.9 : 1,
+        childAspectRatio: widget.isMobile ? 2.5 : 2.8,
       ),
       itemCount: subjects.length,
       itemBuilder: (context, index) {
@@ -179,7 +200,15 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
         return _SubjectCard(
           subject: subject,
           isDark: isDark,
-          onTap: () {},
+          onTap: () {
+            // ✅ Sélectionner la matière
+            provider.selectSubject(subject);
+
+            // ✅ Notifier le parent si un callback est fourni
+            if (widget.onSubjectSelected != null) {
+              widget.onSubjectSelected!(subject);
+            }
+          },
           onDelete: () => _confirmDeleteSubject(context, provider, subject),
           onEdit: () => _showEditSubjectDialog(context, provider, subject),
           isMobile: widget.isMobile,
@@ -188,7 +217,10 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
     );
   }
 
-  // ✅ Méthode pour ouvrir le dialogue
+  // ============================================================
+  //  DIALOGUES
+  // ============================================================
+
   void _showCreateSubjectDialog(BuildContext context) {
     final provider = context.read<DashboardProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -199,7 +231,7 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
       builder: (context) => Dialog(
         backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
         ),
         elevation: 0,
         child: CreateSubjectDialog(
@@ -239,7 +271,6 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
     Subject subject,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isDefault = subject.isDefault;
 
     showDialog(
       context: context,
@@ -251,50 +282,52 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
         title: Text(
           'Supprimer la matière',
           style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
             color: isDark ? AppColors.textWhite : AppColors.textPrimary,
           ),
         ),
         content: Text(
-          isDefault
-              ? '⚠️ Cette matière est une matière par défaut. Elle sera retirée de votre liste mais restera disponible pour les autres utilisateurs.'
-              : 'Êtes-vous sûr de vouloir supprimer "${subject.name}" ?',
+          'Êtes-vous sûr de vouloir supprimer "${subject.displayName}" ?',
           style: TextStyle(
-            color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+            fontSize: 14,
+            color: isDark ? AppColors.textWhite : AppColors.textSecondary,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
+            child: const Text(
               'Annuler',
               style: TextStyle(color: AppColors.textTertiary),
             ),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () async {
               Navigator.pop(context);
               final success = await provider.deleteSubject(subject.id);
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Matière supprimée avec succès'),
-                    backgroundColor: AppColors.success,
+                  const SnackBar(
+                    content: Text('Matière supprimée'),
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               } else if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(provider.error ?? 'Erreur lors de la suppression'),
-                    backgroundColor: AppColors.error,
+                    content: Text(
+                      provider.error ?? 'Erreur lors de la suppression',
+                    ),
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(color: AppColors.error),
             ),
-            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -303,7 +336,7 @@ class _DashboardSubjectsState extends State<DashboardSubjects>
 }
 
 // ============================================================
-//  WIDGET DE CARTE DE MATIÈRE
+//  CARTE DE MATIÈRE ÉPURÉE
 // ============================================================
 
 class _SubjectCard extends StatelessWidget {
@@ -325,184 +358,111 @@ class _SubjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = subject.color != null
-        ? Color(int.parse(subject.color!.replaceFirst('#', '0xFF')))
-        : AppColors.primary;
-
-    final icon = subject.icon ?? _getDefaultIcon(subject.name);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.15)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+    return Material(
+      color: isDark ? AppColors.surfaceDark : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.border,
             ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(icon, style: const TextStyle(fontSize: 24)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subject.displayName,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isMobile ? 11 : 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.textWhite : AppColors.textPrimary,
-                    ),
-                  ),
-                  if (subject.isDefault)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '📌',
-                        style: TextStyle(fontSize: 10, color: AppColors.primary),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: onEdit,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        size: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: onDelete,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 14,
-                        color: AppColors.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (!subject.isActive)
-              Positioned(
-                bottom: 4,
-                right: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Inactif',
-                    style: TextStyle(fontSize: 8, color: AppColors.error),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // Nom de la matière (juste le texte)
+              Expanded(
+                child: Text(
+                  subject.displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isMobile ? 14 : 15,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textWhite : AppColors.textPrimary,
                   ),
                 ),
               ),
-          ],
+
+              // Menu contextuel (éditer / supprimer)
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_horiz,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+                color: isDark ? AppColors.surfaceDark : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isDark ? AppColors.borderDark : AppColors.border,
+                  ),
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: isDark
+                              ? AppColors.textWhite
+                              : AppColors.textPrimary,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Modifier',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark
+                                ? AppColors.textWhite
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Supprimer',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
-  String _getDefaultIcon(String name) {
-    const defaultIcons = {
-      'math': '📐',
-      'français': '📖',
-      'physique': '⚡',
-      'svt': '🧬',
-      'histoire': '🏛️',
-      'anglais': '🗣️',
-      'chimie': '🧪',
-      'philosophie': '💭',
-      'espagnol': '🇪🇸',
-      'allemand': '🇩🇪',
-      'italien': '🇮🇹',
-      'latin': '🏛️',
-      'sport': '⚽',
-      'musique': '🎵',
-      'art': '🎨',
-      'informatique': '💻',
-      'programmation': '💻',
-      'économie': '📊',
-      'gestion': '📋',
-    };
-
-    final lowerName = name.toLowerCase();
-    for (final entry in defaultIcons.entries) {
-      if (lowerName.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-    return '📚';
-  }
 }
 
 // ============================================================
-//  DIALOGUE D'ÉDITION DE MATIÈRE
+//  DIALOGUE D'ÉDITION ÉPURÉ
 // ============================================================
 
 class _EditSubjectDialog extends StatefulWidget {
@@ -522,23 +482,17 @@ class _EditSubjectDialog extends StatefulWidget {
 
 class _EditSubjectDialogState extends State<_EditSubjectDialog> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _iconController = TextEditingController();
-  final TextEditingController _colorController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = widget.subject.displayName;
-    _iconController.text = widget.subject.icon ?? '';
-    _colorController.text = widget.subject.color ?? '';
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _iconController.dispose();
-    _colorController.dispose();
     super.dispose();
   }
 
@@ -551,87 +505,55 @@ class _EditSubjectDialogState extends State<_EditSubjectDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Modifier la matière',
+            'Renommer la matière',
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: widget.isDark ? AppColors.textWhite : AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: widget.isDark
+                  ? AppColors.textWhite
+                  : AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           TextField(
             controller: _nameController,
+            style: TextStyle(
+              fontSize: 15,
+              color: widget.isDark
+                  ? AppColors.textWhite
+                  : AppColors.textPrimary,
+            ),
             decoration: InputDecoration(
-              labelText: 'Nom personnalisé',
+              labelText: 'Nom',
               hintText: widget.subject.name,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              prefixIcon: const Icon(Icons.school_outlined),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _iconController,
-                  decoration: InputDecoration(
-                    labelText: 'Icône (emoji)',
-                    hintText: widget.subject.icon ?? '📚',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.emoji_emotions_outlined),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _colorController,
-                  decoration: InputDecoration(
-                    labelText: 'Couleur (hex)',
-                    hintText: widget.subject.color ?? '#0066FF',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.color_lens_outlined),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
-                child: Text(
+                child: const Text(
                   'Annuler',
                   style: TextStyle(color: AppColors.textTertiary),
                 ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
+              TextButton(
                 onPressed: _isLoading ? null : _updateSubject,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text('Enregistrer'),
               ),
@@ -650,25 +572,22 @@ class _EditSubjectDialogState extends State<_EditSubjectDialog> {
       name: _nameController.text.trim().isNotEmpty
           ? _nameController.text.trim()
           : null,
-      icon: _iconController.text.trim().isNotEmpty
-          ? _iconController.text.trim()
-          : null,
-      color: _colorController.text.trim().isNotEmpty
-          ? _colorController.text.trim()
-          : null,
     );
 
     if (success && context.mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Matière modifiée avec succès !')),
+        const SnackBar(
+          content: Text('Matière modifiée'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } else if (context.mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.provider.error ?? 'Erreur lors de la modification'),
-          backgroundColor: AppColors.error,
+          content: Text(widget.provider.error ?? 'Erreur'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

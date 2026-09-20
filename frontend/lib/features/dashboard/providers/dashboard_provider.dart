@@ -34,7 +34,9 @@ class Subject {
     return Subject(
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
-      slug: json['slug'] ?? json['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+      slug: json['slug'] ??
+          json['name']?.toLowerCase().replaceAll(' ', '_') ??
+          '',
       icon: json['icon'],
       color: json['color'],
       isDefault: json['is_default'] ?? false,
@@ -101,7 +103,7 @@ class DashboardProvider extends ChangeNotifier {
   String get selectedSubjectSlug => _selectedSubjectSlug.isNotEmpty
       ? _selectedSubjectSlug
       : (_subjects.isNotEmpty ? _subjects.first.slug : '');
-  
+
   Subject? get selectedSubject {
     if (_selectedSubjectSlug.isNotEmpty) {
       try {
@@ -112,7 +114,7 @@ class DashboardProvider extends ChangeNotifier {
     }
     return _subjects.isNotEmpty ? _subjects.first : null;
   }
-  
+
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -147,7 +149,15 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectSubject(String slug) {
+  // ✅ NOUVELLE MÉTHODE : accepte un Subject
+  void selectSubject(Subject subject) {
+    _selectedSubjectSlug = subject.slug;
+    _selectedIndex = 0;
+    notifyListeners();
+  }
+
+  // ✅ ANCIENNE MÉTHODE (compatibilité) : accepte un slug
+  void selectSubjectBySlug(String slug) {
     _selectedSubjectSlug = slug;
     _selectedIndex = 0;
     notifyListeners();
@@ -208,7 +218,9 @@ class DashboardProvider extends ChangeNotifier {
           loadedSubjects.add(Subject(
             id: subjectData['id'] ?? 0,
             name: item['custom_name'] ?? subjectData['name'] ?? '',
-            slug: subjectData['slug'] ?? subjectData['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+            slug: subjectData['slug'] ??
+                subjectData['name']?.toLowerCase().replaceAll(' ', '_') ??
+                '',
             icon: item['custom_icon'] ?? subjectData['icon'],
             color: item['custom_color'] ?? subjectData['color'],
             isDefault: false,
@@ -246,7 +258,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ AJOUTER loadSubjectsWithAuth ICI (à l'intérieur de la classe)
   Future<void> loadSubjectsWithAuth() async {
     if (apiClient == null) {
       _loadMockSubjects();
@@ -277,7 +288,9 @@ class DashboardProvider extends ChangeNotifier {
           loadedSubjects.add(Subject(
             id: subjectData['id'] ?? 0,
             name: item['custom_name'] ?? subjectData['name'] ?? '',
-            slug: subjectData['slug'] ?? subjectData['name']?.toLowerCase().replaceAll(' ', '_') ?? '',
+            slug: subjectData['slug'] ??
+                subjectData['name']?.toLowerCase().replaceAll(' ', '_') ??
+                '',
             icon: item['custom_icon'] ?? subjectData['icon'],
             color: item['custom_color'] ?? subjectData['color'],
             isDefault: false,
@@ -323,12 +336,54 @@ class DashboardProvider extends ChangeNotifier {
 
   void _loadMockSubjects() {
     _subjects = [
-      Subject(id: 1, name: 'Mathématiques', slug: 'mathematiques', icon: '📐', color: '#4CAF50', isDefault: true),
-      Subject(id: 2, name: 'Français', slug: 'francais', icon: '📖', color: '#2196F3', isDefault: true),
-      Subject(id: 3, name: 'Physique-Chimie', slug: 'physique', icon: '⚡', color: '#FF9800', isDefault: true),
-      Subject(id: 4, name: 'SVT', slug: 'svt', icon: '🧬', color: '#9C27B0', isDefault: true),
-      Subject(id: 5, name: 'Histoire-Géographie', slug: 'histoire', icon: '🏛️', color: '#795548', isDefault: true),
-      Subject(id: 6, name: 'Anglais', slug: 'anglais', icon: '🗣️', color: '#F44336', isDefault: true),
+      Subject(
+        id: 1,
+        name: 'Mathématiques',
+        slug: 'mathematiques',
+        icon: '📐',
+        color: '#4CAF50',
+        isDefault: true,
+      ),
+      Subject(
+        id: 2,
+        name: 'Français',
+        slug: 'francais',
+        icon: '📖',
+        color: '#2196F3',
+        isDefault: true,
+      ),
+      Subject(
+        id: 3,
+        name: 'Physique-Chimie',
+        slug: 'physique',
+        icon: '⚡',
+        color: '#FF9800',
+        isDefault: true,
+      ),
+      Subject(
+        id: 4,
+        name: 'SVT',
+        slug: 'svt',
+        icon: '🧬',
+        color: '#9C27B0',
+        isDefault: true,
+      ),
+      Subject(
+        id: 5,
+        name: 'Histoire-Géographie',
+        slug: 'histoire',
+        icon: '🏛️',
+        color: '#795548',
+        isDefault: true,
+      ),
+      Subject(
+        id: 6,
+        name: 'Anglais',
+        slug: 'anglais',
+        icon: '🗣️',
+        color: '#F44336',
+        isDefault: true,
+      ),
     ];
 
     _subjectChats = {
@@ -355,21 +410,21 @@ class DashboardProvider extends ChangeNotifier {
 
     try {
       final response = await apiClient!.get('/chat/history/$subjectId');
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
         final List messages = data['messages'] ?? [];
         final String subjectSlug = data['subject_slug'] ?? '';
-        
+
         final normalizedSlug = _normalizeSlug(subjectSlug);
-        
+
         final List<Message> chatMessages = messages.map((m) {
           return Message(
             id: m['id'].toString(),
             content: m['content'] ?? '',
             isUser: m['is_user'] ?? true,
-            timestamp: m['created_at'] != null 
-                ? DateTime.parse(m['created_at']) 
+            timestamp: m['created_at'] != null
+                ? DateTime.parse(m['created_at'])
                 : DateTime.now(),
             isError: m['is_error'] ?? false,
           );
@@ -397,10 +452,13 @@ class DashboardProvider extends ChangeNotifier {
   Future<void> refreshChatHistory(int subjectId) async {
     if (apiClient == null) return;
 
-    final subject = _subjects.firstWhere((s) => s.id == subjectId, orElse: () => _subjects.first);
+    final subject = _subjects.firstWhere(
+      (s) => s.id == subjectId,
+      orElse: () => _subjects.first,
+    );
     final normalizedSlug = _normalizeSlug(subject.slug);
     _subjectChats[normalizedSlug] = [];
-    
+
     await loadChatHistory(subjectId);
   }
 

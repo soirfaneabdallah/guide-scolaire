@@ -1,13 +1,11 @@
-# ============================================================
-# FICHIER: backend/app/agent/tools/register_tools.py
-# DESCRIPTION: Enregistrement des outils au demarrage
-# ============================================================
+# backend/app/agent/tools/register_tools.py
 
 import logging
 from .registry import tool_registry
 from .search_tool import SearchTool
 from .calculator_tool import CalculatorTool
 from .video_tool import VideoTool
+from .sympy_tool import SymPyTool  # ✅ NOUVEAU
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +13,6 @@ logger = logging.getLogger(__name__)
 def register_all_tools():
     """
     Enregistre tous les outils disponibles.
-    A appeler au demarrage de l'application.
     """
     logger.info("🔧 Enregistrement des outils...")
     
@@ -23,16 +20,19 @@ def register_all_tools():
     search_tool = SearchTool()
     tool_registry.register(search_tool)
     
-    # Outil de calcul
+    # Outil de calcul (simple)
     calculator_tool = CalculatorTool()
     tool_registry.register(calculator_tool)
     
-    # Outil de video
+    # Outil de vidéo
     video_tool = VideoTool()
     tool_registry.register(video_tool)
     
+    # ✅ Outil SymPy (calcul formel avancé)
+    sympy_tool = SymPyTool()
+    tool_registry.register(sympy_tool)
+    
     logger.info(f"✅ {len(tool_registry.get_all_tools())} outils enregistres")
     
-    # Afficher les outils disponibles
     for tool in tool_registry.get_all_tools():
         logger.info(f"   - {tool.name}: {tool.description[:50]}...")

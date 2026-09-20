@@ -1,20 +1,22 @@
 // frontend/lib/features/chat/presentation/screens/chat_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_input_bar.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/typing_indicator.dart';
 
-
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, this.initialQuestion});
+  const ChatScreen({
+    super.key,
+    this.initialQuestion,
+    this.subjectName,  // ✅ AJOUTÉ
+  });
 
   final String? initialQuestion;
+  final String? subjectName;  // ✅ AJOUTÉ
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -32,7 +34,6 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void didUpdateWidget(ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si une question initiale est fournie, l'envoyer automatiquement
     if (widget.initialQuestion != null &&
         widget.initialQuestion != oldWidget.initialQuestion) {
       Future.microtask(() {
@@ -65,37 +66,54 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChatProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         elevation: 0,
-        title: const Text(
-          'E-learningAI',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
+        // ✅ AFFICHER LE NOM DE LA MATIÈRE
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.subjectName ?? 'Chat',
+              style: TextStyle(
+                color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            
+          ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? AppColors.textWhite : AppColors.textPrimary,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.textSecondary),
-            onPressed: () {
-              _showClearDialog(context);
-            },
+            icon: Icon(
+              Icons.delete_outline,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: () => _showClearDialog(context),
             tooltip: 'Effacer la conversation',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Messages list
+          // ============================================================
+          // MESSAGES
+          // ============================================================
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -103,7 +121,6 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: provider.messages.length + 1,
               itemBuilder: (context, index) {
                 if (index == provider.messages.length) {
-                  // Typing indicator
                   if (provider.isLoading) {
                     return const Padding(
                       padding: EdgeInsets.only(top: 8),
@@ -124,7 +141,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Saisie
+          // ============================================================
+          // BARRE DE SAISIE
+          // ============================================================
           ChatInputBar(
             onSend: (text) {
               provider.sendMessage(text);
@@ -133,7 +152,6 @@ class _ChatScreenState extends State<ChatScreen> {
             onTyping: _scrollToBottom,
             isLoading: provider.isLoading,
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -143,6 +161,9 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: const Text('Effacer la conversation'),
         content: const Text(
           'Tous les messages seront supprimés. Cette action est irréversible.',

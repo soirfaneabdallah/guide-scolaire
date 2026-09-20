@@ -2,135 +2,141 @@
 
 import 'package:flutter/material.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../repositories/chat_repository.dart';
 import '../../domain/entities/message.dart';
-import '../../repositories/i_chat_repository.dart';
-import '../../domain/usecases/send_message.dart';
 
 class ChatProvider extends ChangeNotifier {
   ChatProvider({
-    required IChatRepository chatRepository,
+    required ChatRepository chatRepository,
     required AuthProvider authProvider,
-    required this.subjectId,
-  })  : _sendMessageUseCase = SendMessageUseCase(chatRepository),
-        _authProvider = authProvider {
-    _messages = [
-      Message(
-        id: 'welcome',
-        content:
-            '👋 Bonjour ! Je suis ton assistant scolaire. Pose-moi une question sur n\'importe quel sujet de cours.',
-        isUser: false,
-        timestamp: DateTime.now(),
-        suggestions: [
-          'Explique-moi les fractions',
-          'Comment conjuguer au passé composé ?',
-          'Théorème de Pythagore',
-          'Calculer une moyenne',
-        ],
-      ),
-    ];
+    required int subjectId,
+  })  : _chatRepository = chatRepository,
+        _authProvider = authProvider,
+        _subjectId = subjectId {
+    // ✅ Charger l'historique automatiquement à la création
+    loadHistory();
   }
 
-  final SendMessageUseCase _sendMessageUseCase;
+  final ChatRepository _chatRepository;
   final AuthProvider _authProvider;
-  final int subjectId;
+  int _subjectId;
 
-  List<Message> _messages = [];
+  final List<Message> _messages = [];
   bool _isLoading = false;
+  bool _isLoadingHistory = false;
   String? _error;
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
 
   List<Message> get messages => List.unmodifiable(_messages);
   bool get isLoading => _isLoading;
+  bool get isLoadingHistory => _isLoadingHistory;
   String? get error => _error;
+  int get subjectId => _subjectId;
 
-  // ✅ AJOUT : Méthode pour mettre à jour les messages depuis l'historique
-  void setMessages(List<Message> messages) {
-    _messages = messages;
-    _isLoading = false;
+  // ============================================================
+  // CHARGER L'HISTORIQUE
+  // ============================================================
+
+  Future<void> loadHistory() async {
+    if (_isLoadingHistory) return;
+
+    _isLoadingHistory = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      final history = await _chatRepository.getHistory(
+        subjectId: _subjectId,
+        limit: 100,
+      );
+
+      _messages.clear();
+      _messages.addAll(history);
+
+      _isLoadingHistory = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoadingHistory = false;
+      notifyListeners();
+      debugPrint('❌ Erreur chargement historique: $e');
+    }
   }
 
-  Future<void> sendMessage(String content) async {
-    if (content.trim().isEmpty) return;
+  // ============================================================
+  // ENVOYER UN MESSAGE
+  // ============================================================
 
-    _error = null;
+  Future<void> sendMessage(String text) async {
+    if (text.trim().isEmpty || _isLoading) return;
 
-    final userMessage = Message(
+    // 1. Ajouter le message utilisateur
+    _messages.add(Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      content: content.trim(),
+      content: text,
       isUser: true,
       timestamp: DateTime.now(),
-    );
-    _messages.add(userMessage);
-    notifyListeners();
-
-    final assistantPlaceholder = Message(
-      id: 'typing_${DateTime.now().millisecondsSinceEpoch}',
-      content: '',
-      isUser: false,
-      timestamp: DateTime.now(),
-    );
-    _messages.add(assistantPlaceholder);
+    ));
     _isLoading = true;
     notifyListeners();
 
     try {
-      final userId = _authProvider.userId;
-      
-      print('📤 Envoi de la question: $content');
-      print('📤 subjectId: $subjectId');
-      
-      final response = await _sendMessageUseCase.execute(
-        content.trim(),
-        userId: userId,
-        subjectId: subjectId,
+      final Message responseMessage = await _chatRepository.sendMessage(
+        question: text,
+        subjectId: _subjectId,
       );
-      
-      print('📥 Réponse reçue: ${response.content.substring(0, 50)}...');
 
-      _messages.removeLast();
-      _messages.add(response);
+      _messages.add(responseMessage);
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('❌ Erreur: $e');
-      _messages.removeLast();
-      _messages.add(
-        Message(
-          id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-          content: '❌ Erreur: ${e.toString()}',
-          isUser: false,
-          timestamp: DateTime.now(),
-          isError: true,
-        ),
-      );
-      _isLoading = false;
       _error = e.toString();
+      _isLoading = false;
+
+      _messages.add(Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
+        isUser: false,
+        timestamp: DateTime.now(),
+        isError: true,
+      ));
       notifyListeners();
     }
   }
 
+  // ============================================================
+  // CHANGER DE MATIÈRE
+  // ============================================================
+
+  void updateSubject(int newSubjectId) {
+    _subjectId = newSubjectId;
+    _messages.clear();
+    _error = null;
+    notifyListeners();
+
+    // ✅ Recharger l'historique de la nouvelle matière
+    loadHistory();
+  }
+
+  // ============================================================
+  // EFFACER LA CONVERSATION
+  // ============================================================
+
   void clearConversation() {
-    _messages = [
-      Message(
-        id: 'welcome',
-        content:
-            '👋 Bonjour ! Je suis ton assistant scolaire. Pose-moi une question sur n\'importe quel sujet de cours.',
-        isUser: false,
-        timestamp: DateTime.now(),
-        suggestions: [
-          'Explique-moi les fractions',
-          'Comment conjuguer au passé composé ?',
-          'Théorème de Pythagore',
-          'Calculer une moyenne',
-        ],
-      ),
-    ];
+    _messages.clear();
     _error = null;
     notifyListeners();
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
+  // ============================================================
+  // RAFRAÎCHIR
+  // ============================================================
+
+  Future<void> refresh() async {
+    await loadHistory();
   }
 }

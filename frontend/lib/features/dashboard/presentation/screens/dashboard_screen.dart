@@ -7,7 +7,7 @@ import '../../../../core/routing/app_routes.dart';
 import '../../../../core/network/api_client.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../widgets/dashboard_sidebar.dart';
-import '../../widgets/dashboard_subject_chat.dart';
+import '../../widgets/dashboard_subject_view.dart';  // ✅ CHANGÉ
 import '../../../auth/providers/auth_provider.dart';
 import '../../../cahier/presentation/screens/cahier_screen.dart';
 import '../../../exercises/presentation/screens/exercices_screen.dart';
@@ -31,7 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<DashboardProvider>();
       final auth = context.read<AuthProvider>();
-      
+
       if (auth.isAuthenticated && auth.token != null) {
         provider.loadSubjectsWithAuth();
       } else {
@@ -56,7 +56,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      // ✅ AppBar simple pour mobile
       appBar: isMobile
           ? AppBar(
               backgroundColor: Colors.white,
@@ -66,7 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
               title: const Text(
-                'Guide Scolaire',
+                'E-learningAI',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -75,9 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )
           : null,
-      drawer: isMobile
-          ? const Drawer(child: DashboardSidebar())
-          : null,
+      drawer: isMobile ? const Drawer(child: DashboardSidebar()) : null,
       body: Row(
         children: [
           // Sidebar Desktop
@@ -125,15 +122,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // Accueil (Chat)
+    // Accueil (Vidéos)
     final subject = provider.selectedSubject;
-    
+
     if (subject == null) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+            Icon(Icons.school_outlined, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text('Aucune matière disponible'),
             SizedBox(height: 8),
@@ -143,7 +140,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    return DashboardSubjectChat(
+    // ✅ Afficher les vidéos de la matière (au lieu du chat)
+    return DashboardSubjectView(
       subjectSlug: subject.slug,
       isMobile: isMobile,
     );

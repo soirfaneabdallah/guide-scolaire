@@ -66,7 +66,9 @@ class AgentState(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     iterations: int = 0
-    
+    # Historique des actions et observations
+    chat_history: List[Dict[str, str]] = Field(default_factory=list) 
+    last_user_message: Optional[str] = None
     def add_step(self, status: AgentStatus, action: Optional[str] = None, observation: Optional[str] = None):
         """Ajoute une etape a l'historique"""
         self.current_step += 1

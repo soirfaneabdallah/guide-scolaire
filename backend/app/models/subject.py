@@ -22,6 +22,9 @@ class Subject(Base):
     user_subjects = relationship("UserSubject", back_populates="subject", cascade="all, delete-orphan")
     books = relationship("Book", back_populates="subject", foreign_keys="Book.subject_id")
     chat_history = relationship("ChatHistory", back_populates="subject", foreign_keys="ChatHistory.subject_id")
+    video_scripts = relationship("VideoScript", back_populates="subject")
+    chapters = relationship("Chapter", back_populates="subject")
+    
 
 
 class UserSubject(Base):

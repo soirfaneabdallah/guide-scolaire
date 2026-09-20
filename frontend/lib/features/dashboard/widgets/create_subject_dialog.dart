@@ -2,8 +2,6 @@
 
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/widgets/color_picker.dart';
-import '../../../core/widgets/icon_picker.dart';
 import '../providers/dashboard_provider.dart';
 
 class CreateSubjectDialog extends StatefulWidget {
@@ -22,8 +20,6 @@ class CreateSubjectDialog extends StatefulWidget {
 
 class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
   final TextEditingController _nameController = TextEditingController();
-  String _selectedIcon = '📚';
-  String _selectedColor = '#4CAF50';
   bool _isLoading = false;
 
   @override
@@ -34,16 +30,16 @@ class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Rendre responsive
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    final dialogWidth = isMobile ? screenWidth * 0.92 : 480.0;
-    final padding = isMobile ? 16.0 : 24.0;
+    final dialogWidth = isMobile ? screenWidth * 0.92 : 440.0;
+    final padding = isMobile ? 20.0 : 24.0;
 
     return Dialog(
-      backgroundColor: widget.isDark ? AppColors.surfaceDark : AppColors.surface,
+      backgroundColor:
+          widget.isDark ? AppColors.surfaceDark : AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+        borderRadius: BorderRadius.circular(16),
       ),
       elevation: 0,
       child: Container(
@@ -57,219 +53,83 @@ class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // En-tête
-              Row(
-                children: [
-                  Container(
-                    width: isMobile ? 40 : 48,
-                    height: isMobile ? 40 : 48,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: isMobile ? 22 : 28,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: isMobile ? 12 : 16),
-                  Expanded(
-                    child: Text(
-                      'Nouvelle matière',
-                      style: TextStyle(
-                        fontSize: isMobile ? 18 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: widget.isDark
-                            ? AppColors.textWhite
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
+              // ============================================================
+              // TITRE
+              // ============================================================
+              Text(
+                'Nouvelle matière',
+                style: TextStyle(
+                  fontSize: isMobile ? 17 : 18,
+                  fontWeight: FontWeight.w600,
+                  color: widget.isDark
+                      ? AppColors.textWhite
+                      : AppColors.textPrimary,
+                  letterSpacing: -0.3,
+                ),
               ),
-              SizedBox(height: isMobile ? 16 : 20),
+              const SizedBox(height: 6),
+              Text(
+                'Ajoute une matière à ton espace de travail',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 24),
 
-              // Champ nom
+              // ============================================================
+              // CHAMP NOM
+              // ============================================================
               TextField(
                 controller: _nameController,
                 autofocus: true,
-                textInputAction: TextInputAction.next,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _isLoading ? null : _createSubject(),
                 decoration: InputDecoration(
-                  labelText: 'Nom de la matière *',
-                  hintText: 'ex: Programmation Dart',
+                  labelText: 'Nom',
+                  hintText: 'ex : Programmation',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                    borderSide: BorderSide(
-                      color: widget.isDark ? AppColors.borderDark : AppColors.border,
-                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                    borderSide: BorderSide(
-                      color: widget.isDark ? AppColors.borderDark : AppColors.border,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                    borderSide: const BorderSide(
-                      color: AppColors.primary,
-                      width: 2,
-                    ),
-                  ),
-                  prefixIcon: const Icon(Icons.school_outlined),
-                  filled: true,
-                  fillColor: widget.isDark
-                      ? AppColors.surfaceDark
-                      : AppColors.surface,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 12 : 16,
-                    vertical: isMobile ? 12 : 16,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
                   ),
                 ),
                 style: TextStyle(
-                  fontSize: isMobile ? 14 : 16,
-                  color: widget.isDark ? AppColors.textWhite : AppColors.textPrimary,
+                  fontSize: 15,
+                  color: widget.isDark
+                      ? AppColors.textWhite
+                      : AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: isMobile ? 16 : 20),
+              const SizedBox(height: 24),
 
-              // Sélecteur d'icône
-              IconPicker(
-                selectedIcon: _selectedIcon,
-                onIconSelected: (icon) {
-                  setState(() => _selectedIcon = icon);
-                },
-                itemSize: isMobile ? 36 : 44,
-                showSearch: !isMobile,
-              ),
-              SizedBox(height: isMobile ? 12 : 16),
-
-              // Sélecteur de couleur
-              ColorPicker(
-                selectedColor: _selectedColor,
-                onColorSelected: (color) {
-                  setState(() => _selectedColor = color);
-                },
-                itemSize: isMobile ? 30 : 36,
-              ),
-              SizedBox(height: isMobile ? 16 : 20),
-
-              // Aperçu
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(isMobile ? 10 : 12),
-                decoration: BoxDecoration(
-                  color: Color(int.parse(_selectedColor.replaceFirst('#', '0xFF')))
-                      .withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                  border: Border.all(
-                    color: Color(int.parse(_selectedColor.replaceFirst('#', '0xFF')))
-                        .withOpacity(0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: isMobile ? 36 : 40,
-                      height: isMobile ? 36 : 40,
-                      decoration: BoxDecoration(
-                        color: Color(int.parse(_selectedColor.replaceFirst('#', '0xFF')))
-                            .withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _selectedIcon,
-                          style: TextStyle(fontSize: isMobile ? 18 : 20),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: isMobile ? 10 : 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _nameController.text.isEmpty
-                                ? 'Nom de la matière'
-                                : _nameController.text,
-                            style: TextStyle(
-                              fontSize: isMobile ? 14 : 16,
-                              fontWeight: FontWeight.w600,
-                              color: widget.isDark
-                                  ? AppColors.textWhite
-                                  : AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'Aperçu de la matière',
-                            style: TextStyle(
-                              fontSize: isMobile ? 11 : 12,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: isMobile ? 16 : 20),
-
-              // Actions
+              // ============================================================
+              // ACTIONS
+              // ============================================================
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isLoading ? null : () => Navigator.pop(context),
-                    child: Text(
+                    onPressed:
+                        _isLoading ? null : () => Navigator.pop(context),
+                    child: const Text(
                       'Annuler',
-                      style: TextStyle(
-                        color: AppColors.textTertiary,
-                        fontWeight: FontWeight.w500,
-                        fontSize: isMobile ? 14 : 15,
-                      ),
+                      style: TextStyle(color: AppColors.textTertiary),
                     ),
                   ),
-                  SizedBox(width: isMobile ? 4 : 8),
-                  ElevatedButton.icon(
+                  const SizedBox(width: 8),
+                  TextButton(
                     onPressed: _isLoading ? null : _createSubject,
-                    icon: _isLoading
-                        ? SizedBox(
-                            width: isMobile ? 16 : 20,
-                            height: isMobile ? 16 : 20,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(Icons.add, size: isMobile ? 16 : 18),
-                    label: Text(
-                      _isLoading ? 'Création...' : 'Créer',
-                      style: TextStyle(
-                        fontSize: isMobile ? 13 : 14,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 16 : 24,
-                        vertical: isMobile ? 10 : 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                      ),
-                      elevation: 0,
-                      minimumSize: isMobile
-                          ? const Size(80, 40)
-                          : const Size(100, 48),
-                    ),
+                        : const Text('Créer'),
                   ),
                 ],
               ),
@@ -280,13 +140,17 @@ class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
     );
   }
 
+  // ============================================================
+  // CRÉATION DE LA MATIÈRE
+  // ============================================================
+
   Future<void> _createSubject() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Veuillez entrer un nom'),
-          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -294,26 +158,27 @@ class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
 
     setState(() => _isLoading = true);
 
+    // ✅ Seuls le nom est requis désormais
     final success = await widget.provider.createSubject(
       name: name,
-      icon: _selectedIcon,
-      color: _selectedColor,
     );
 
     if (success && context.mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Matière créée avec succès !'),
-          backgroundColor: AppColors.success,
+          content: Text('Matière créée'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } else if (context.mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.provider.error ?? '❌ Erreur lors de la création'),
-          backgroundColor: AppColors.error,
+          content: Text(
+            widget.provider.error ?? 'Erreur lors de la création',
+          ),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

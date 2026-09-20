@@ -37,6 +37,7 @@ class User(Base):
     book_likes = relationship("BookLike", back_populates="user", foreign_keys="BookLike.user_id")
     book_comments = relationship("BookComment", back_populates="user", foreign_keys="BookComment.user_id")
     comment_likes = relationship("CommentLike", back_populates="user", foreign_keys="CommentLike.user_id")
+    progress = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip() if self.first_name and self.last_name else self.first_name or self.last_name or self.email

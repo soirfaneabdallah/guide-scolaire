@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/home_hero.dart';
 import '../../widgets/home_features.dart';
 import '../../widgets/home_news.dart';
@@ -12,6 +13,8 @@ import '../../widgets/home_menu_items.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/routing/app_routes.dart';
 import '../../../../core/routing/app_router.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../videos/presentation/screens/home_videos_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   HomeScreen({super.key});
@@ -20,6 +23,14 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Si connecté → page vidéos (Video-First)
+    final auth = context.watch<AuthProvider>();
+    
+    if (auth.isAuthenticated) {
+      return const HomeVideosScreen();
+    }
+
+    // ✅ Sinon → landing page publique
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 700;
@@ -70,7 +81,6 @@ class HomeScreen extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ✅ Logo SVG
         SvgPicture.asset(
           'assets/images/logo.svg',
           width: size,
@@ -81,7 +91,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        // ✅ Texte E-learningAI
         Text(
           'E-learningAI',
           style: TextStyle(
@@ -101,14 +110,13 @@ class HomeScreen extends StatelessWidget {
 
   List<Widget> _buildActions(BuildContext context, bool isMobile) {
     if (isMobile) {
-      return []; // Sur mobile, les boutons sont dans le drawer
+      return [];
     }
 
     return [
       ...HomeMenuItems.items.map((item) {
         return TextButton(
           onPressed: () {
-            // Navigation vers les sections
             _scrollToSection(context, item['section'] as String);
           },
           style: TextButton.styleFrom(
@@ -156,11 +164,10 @@ class HomeScreen extends StatelessWidget {
   // ============================================================
 
   void _scrollToSection(BuildContext context, String section) {
-    // Trouver le ScrollController dans le contexte
-    final scrollView = context.findAncestorWidgetOfExactType<SingleChildScrollView>();
+    final scrollView =
+        context.findAncestorWidgetOfExactType<SingleChildScrollView>();
     if (scrollView != null) {
       // Logique de scroll vers la section
-      // À implémenter selon vos besoins
     }
   }
 }
