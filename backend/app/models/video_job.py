@@ -1,6 +1,6 @@
 # ============================================================
 # FICHIER: backend/app/models/video_job.py
-# DESCRIPTION: Modele VideoJob pour le suivi des generations
+# DESCRIPTION: Modèle VideoJob pour le suivi des générations
 # ============================================================
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON, Enum as SQLEnum
@@ -11,7 +11,7 @@ from app.core.database import Base
 
 
 class JobStatus(enum.Enum):
-    """Statuts possibles d'un job de generation"""
+    """Statuts possibles d'un job de génération"""
     PENDING = "pending"
     GENERATING_CODE = "generating_code"
     RENDERING = "rendering"
@@ -23,59 +23,61 @@ class JobStatus(enum.Enum):
 
 
 class VideoJob(Base):
-    """Modele representant un job de generation video"""
-    
+    """Modèle représentant un job de génération vidéo"""
+
     __tablename__ = "video_jobs"
-    
+
     # Identifiants
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
+
     # Contenu
     prompt_context = Column(Text, nullable=False)
     concept = Column(String(255), nullable=True)
     level = Column(String(50), nullable=True)
     language = Column(String(10), default="fr")
-    
+
     # Statut et progression
     status = Column(SQLEnum(JobStatus), default=JobStatus.PENDING)
     progress = Column(Integer, default=0)
-    
-    # Durees
+
+    # Durées
     estimated_duration_seconds = Column(Integer, default=360)
     actual_duration_seconds = Column(Integer, nullable=True)
     elapsed_seconds = Column(Integer, default=0)
-    
-    # Resultats
+
+    # Résultats
     video_url = Column(String(500), nullable=True)
     thumbnail_url = Column(String(500), nullable=True)
     error_message = Column(Text, nullable=True)
     error_code = Column(String(50), nullable=True)
-    
-    # Metadonnees d'evolution
+
+    # Métadonnées d'évolution
     generator_version = Column(String(20), default="1.0.0")
     engine_used = Column(String(50), default="manim")
     llm_model_used = Column(String(50), default="mistral")
     tts_engine_used = Column(String(50), default="edge")
-    metadata = Column(JSON, default={})
-    
+
+    # ✅ CORRECTION : 'extra_data' au lieu de 'metadata'
+    extra_data = Column("metadata", JSON, default={})
+
     # Fallback et retries
     fallback_used = Column(Boolean, default=False)
     error_retries = Column(Integer, default=0)
     max_retries = Column(Integer, default=2)
-    
+
     # Cache
     is_cached = Column(Boolean, default=False)
     cache_key = Column(String(255), nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    
+
     def to_dict(self) -> dict:
-        """Convertit le modele en dictionnaire"""
+        """Convertit le modèle en dictionnaire"""
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -99,6 +101,6 @@ class VideoJob(Base):
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
-    
+
     def __repr__(self):
         return f"<VideoJob {self.id} - {self.status}>"

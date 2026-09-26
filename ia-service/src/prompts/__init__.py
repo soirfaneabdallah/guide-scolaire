@@ -1,73 +1,43 @@
 # ============================================================
 # FICHIER: ia-service/src/prompts/__init__.py
-# DESCRIPTION: Export des prompts
+# DESCRIPTION: Export de tous les prompts (chat + vidéo)
 # ============================================================
 
-from .manim_prompts import (
-    MANIM_SYSTEM_PROMPT,
-    MANIM_USER_PROMPT_TEMPLATE,
-    MANIM_ERROR_CORRECTION_PROMPT
-)
+# ============================================================
+# PROMPTS CHAT (existants)
+# ============================================================
 
-from .script_prompts import (
-    SCRIPT_SYSTEM_PROMPT,
-    SCRIPT_USER_PROMPT_TEMPLATE,
-    SCRIPT_FALLBACK_PROMPT
-)
+# ✅ Import depuis l'ancien fichier prompt.py (dans src/llm/)
+try:
+    from src.llm.prompt import build_prompt, build_video_prompt
+except ImportError:
+    # Fallback : définir des fonctions vides
+    def build_prompt(*args, **kwargs):
+        return "", ""
+    def build_video_prompt(*args, **kwargs):
+        return "", ""
 
-from .intent_prompts import (
-    INTENT_SYSTEM_PROMPT,
-    INTENT_USER_PROMPT_TEMPLATE,
-    INTENT_FALLBACK_PROMPT
-)
 
-from .fallback_prompts import (
-    FALLBACK_SYSTEM_PROMPT,
-    FALLBACK_USER_PROMPT_TEMPLATE,
-    FALLBACK_CONCEPT_EXTRACTION,
-    FALLBACK_SCRIPT_PROMPT,
-    FALLBACK_ERROR_CORRECTION
-)
+# ============================================================
+# PROMPTS VIDÉO (nouveaux)
+# ============================================================
 
-from .prompt_builder import (
-    build_prompt,
-    build_video_prompt,
-    PromptBuilder,
-    PromptContext,
-    QueryIntent,
-    Subject,
-    SchoolLevel
-)
+from .planner_prompts import build_planner_prompt
+from .narrator_prompts import build_narrator_prompt
+from .coder_prompts import build_coder_prompt
+
+
+# ============================================================
+# EXPORTS
+# ============================================================
 
 __all__ = [
-    # Manim
-    "MANIM_SYSTEM_PROMPT",
-    "MANIM_USER_PROMPT_TEMPLATE",
-    "MANIM_ERROR_CORRECTION_PROMPT",
-    
-    # Script
-    "SCRIPT_SYSTEM_PROMPT",
-    "SCRIPT_USER_PROMPT_TEMPLATE",
-    "SCRIPT_FALLBACK_PROMPT",
-    
-    # Intent
-    "INTENT_SYSTEM_PROMPT",
-    "INTENT_USER_PROMPT_TEMPLATE",
-    "INTENT_FALLBACK_PROMPT",
-    
-    # Fallback
-    "FALLBACK_SYSTEM_PROMPT",
-    "FALLBACK_USER_PROMPT_TEMPLATE",
-    "FALLBACK_CONCEPT_EXTRACTION",
-    "FALLBACK_SCRIPT_PROMPT",
-    "FALLBACK_ERROR_CORRECTION",
-    
-    # Builder
+    # Chat
     "build_prompt",
     "build_video_prompt",
-    "PromptBuilder",
-    "PromptContext",
-    "QueryIntent",
-    "Subject",
-    "SchoolLevel",
+    
+    # Vidéo
+    "build_planner_prompt",
+    "build_narrator_prompt",
+    "build_coder_prompt",
 ]

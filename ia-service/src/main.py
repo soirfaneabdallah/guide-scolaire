@@ -7,6 +7,8 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import router
+from src.api.routes import tts as tts_routes
+from src.api.routes import manim_render as manim_routes
 
 # Configuration des logs
 logging.basicConfig(
@@ -33,8 +35,8 @@ app.add_middleware(
 
 # ✅ INCLURE LE ROUTER AVEC LE PREFIXE /api
 app.include_router(router, prefix="/api")
-
-
+app.include_router(tts_routes.router)
+app.include_router(manim_routes.router)
 @app.get("/")
 async def root():
     return {

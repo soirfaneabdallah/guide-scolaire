@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../features/auth/presentation/screens/login_page.dart';
 import '../../features/auth/presentation/screens/register_page.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
@@ -14,9 +15,10 @@ import '../../features/profile/presentation/screens/profile_edit_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/videos/presentation/screens/home_videos_screen.dart';
 import '../../features/videos/presentation/screens/subject_videos_screen.dart';
+import '../../features/videos/presentation/screens/create_video_screen.dart';
+import '../../features/videos/presentation/screens/video_player_screen.dart';
 import '../../features/videos/data/repositories/video_repository.dart';
 import '../../features/videos/presentation/providers/video_provider.dart';
-import '../../features/dashboard/providers/dashboard_provider.dart';
 import '../network/api_client.dart';
 import 'app_routes.dart';
 
@@ -29,50 +31,33 @@ class AppRouter {
       // ROUTES DE BASE
       // ============================================================
       case AppRoutes.home:
-        return _fadeRoute(
-          settings,
-          (_) =>  HomeScreen(),
-        );
+        return _fadeRoute(settings, (_) => HomeScreen());
 
       case AppRoutes.dashboard:
-        return _fadeRoute(
-          settings,
-          (_) => const DashboardScreen(),
-        );
+        return _fadeRoute(settings, (_) => const DashboardScreen());
 
       case AppRoutes.login:
-        return _fadeRoute(
-          settings,
-          (_) => const LoginPage(),
-        );
+        return _fadeRoute(settings, (_) => const LoginPage());
 
       case AppRoutes.register:
-        return _fadeRoute(
-          settings,
-          (_) => const RegisterPage(),
-        );
+        return _fadeRoute(settings, (_) => const RegisterPage());
 
       case AppRoutes.profileEdit:
-        return _slideRoute(
-          settings,
-          (_) => const ProfileEditScreen(),
-        );
+        return _slideRoute(settings, (_) => const ProfileEditScreen());
 
       case AppRoutes.settings:
-        return _slideRoute(
-          settings,
-          (_) => const SettingsScreen(),
-        );
+        return _slideRoute(settings, (_) => const SettingsScreen());
 
       // ============================================================
-      // ✅ NOUVELLE ROUTE : ACCUEIL VIDÉOS (Video-First)
+      // VIDÉOS — ACCUEIL (Video-First)
       // ============================================================
       case AppRoutes.homeVideos:
         return _fadeRoute(
           settings,
           (context) {
             final apiClient = Provider.of<ApiClient>(context, listen: false);
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
 
             return MultiProvider(
               providers: [
@@ -89,11 +74,11 @@ class AppRouter {
         );
 
       // ============================================================
-      // ✅ NOUVELLE ROUTE : VIDÉOS PAR MATIÈRE
+      // VIDÉOS PAR MATIÈRE
       // ============================================================
       case AppRoutes.subjectVideos:
         final args = settings.arguments as Map<String, dynamic>?;
-        
+
         if (args == null) {
           return _errorRoute('Arguments manquants pour les vidéos de matière');
         }
@@ -111,7 +96,8 @@ class AppRouter {
           settings,
           (context) {
             final apiClient = Provider.of<ApiClient>(context, listen: false);
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
 
             return MultiProvider(
               providers: [
@@ -133,22 +119,15 @@ class AppRouter {
         );
 
       // ============================================================
-      // ✅ NOUVELLE ROUTE : LECTEUR VIDÉO
+      // ✅ CRÉATION DE VIDÉO (AJOUT)
       // ============================================================
-      case AppRoutes.videoPlayer:
-        final args = settings.arguments as Map<String, dynamic>?;
-        
-        if (args == null || args['scriptId'] == null) {
-          return _errorRoute('ID de vidéo manquant');
-        }
-
-        final scriptId = args['scriptId'] as String;
-
+      case AppRoutes.createVideo:
         return _slideRoute(
           settings,
           (context) {
             final apiClient = Provider.of<ApiClient>(context, listen: false);
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
 
             return MultiProvider(
               providers: [
@@ -159,52 +138,36 @@ class AppRouter {
                   ),
                 ),
               ],
-              // TODO: Créer VideoPlayerScreen
-              child: Scaffold(
-                appBar: AppBar(title: const Text('Lecteur vidéo')),
-                body: Center(
-                  child: Text('Lecteur vidéo pour : $scriptId\n(À venir)'),
-                ),
-              ),
+              child: const CreateVideoScreen(),
             );
           },
         );
 
       // ============================================================
-      // ✅ NOUVELLE ROUTE : CRÉER UNE VIDÉO
+      // LECTEUR VIDÉO
       // ============================================================
-      case AppRoutes.createVideo:
+      case AppRoutes.videoPlayer:
         final args = settings.arguments as Map<String, dynamic>?;
-        final subjectId = args?['subjectId'] as int?;
-        final subjectName = args?['subjectName'] as String?;
-        final level = args?['level'] as String?;
+        if (args == null || args['scriptId'] == null) {
+          return _errorRoute('ID de vidéo manquant');
+        }
+
+        final scriptId = args['scriptId'] as String;
 
         return _slideRoute(
           settings,
-          (context) {
-            return Scaffold(
-              appBar: AppBar(
-                title: Text(
-                  subjectName != null
-                      ? 'Créer une vidéo - $subjectName'
-                      : 'Créer une vidéo',
-                ),
-              ),
-              body: Center(
-                child: Text(
-                  'Création de vidéo\n'
-                  'Matière: ${subjectName ?? "générale"}\n'
-                  'Niveau: ${level ?? "3ème"}\n'
-                  '(À venir)',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          },
+          (context) => VideoPlayerScreen(
+            scriptId: scriptId,
+            title: args['title'] as String?,
+            subjectName: args['subjectName'] as String?,
+            description: args['description'] as String?,
+            level: args['level'] as String?,
+            duration: args['duration'] as int?,
+          ),
         );
 
       // ============================================================
-      // ✅ NOUVELLE ROUTE : RECHERCHE
+      // RECHERCHE
       // ============================================================
       case AppRoutes.search:
         return _fadeRoute(
@@ -217,7 +180,6 @@ class AppRouter {
           ),
         );
 
-
       // ============================================================
       // CHAT
       // ============================================================
@@ -225,12 +187,13 @@ class AppRouter {
         final args = settings.arguments as Map<String, dynamic>?;
         final initialQuestion = args?['question'] as String?;
         final subjectId = args?['subjectId'] as int? ?? 1;
-        final subjectName = args?['subjectName'] as String?;  // ✅ AJOUTÉ
+        final subjectName = args?['subjectName'] as String?;
 
         return _slideRoute(
           settings,
           (context) {
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final authProvider =
+                Provider.of<AuthProvider>(context, listen: false);
             final apiClient = Provider.of<ApiClient>(context, listen: false);
             final chatRepository = ChatRepository(apiClient: apiClient);
 
@@ -242,11 +205,12 @@ class AppRouter {
               ),
               child: ChatScreen(
                 initialQuestion: initialQuestion,
-                subjectName: subjectName,  // ✅ PASSÉ
+                subjectName: subjectName,
               ),
             );
           },
         );
+
       // ============================================================
       // ROUTES DYNAMIQUES
       // ============================================================
@@ -256,14 +220,12 @@ class AppRouter {
           settings,
           (_) => Scaffold(
             appBar: AppBar(title: Text('Cours #$id')),
-            body: Center(
-              child: Text('Page du cours $id (à venir)'),
-            ),
+            body: Center(child: Text('Page du cours $id (à venir)')),
           ),
         );
 
       // ============================================================
-      // ROUTE PAR DÉFAUT (erreur 404)
+      // ROUTE PAR DÉFAUT (404)
       // ============================================================
       default:
         return _errorRoute('Route non trouvée : ${settings.name}');
@@ -284,11 +246,7 @@ class AppRouter {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red,
-                ),
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
                 Text(
                   message,
@@ -355,12 +313,10 @@ class AppRouter {
   // UTILITAIRES
   // ============================================================
 
-  /// Convertit une chaîne hexadécimale en Color
   static Color _parseColor(String? colorString) {
     if (colorString == null || colorString.isEmpty) {
-      return const Color(0xFF4F46E5); // Couleur primaire par défaut
+      return const Color(0xFF4F46E5);
     }
-
     try {
       final hex = colorString.replaceAll('#', '');
       return Color(int.parse('FF$hex', radix: 16));

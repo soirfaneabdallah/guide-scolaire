@@ -13,12 +13,6 @@ import '../../videos/presentation/widgets/video_card.dart';
 import '../providers/dashboard_provider.dart';
 
 /// Widget central affiché lorsqu'une matière est sélectionnée.
-/// 
-/// Contient :
-/// - Barre de recherche
-/// - Sélecteur de niveau (à la place du nombre de messages)
-/// - Bouton d'accès au chat de la matière
-/// - Liste des vidéos de la matière
 class DashboardSubjectView extends StatefulWidget {
   const DashboardSubjectView({
     super.key,
@@ -117,19 +111,13 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
             value: _videoProvider,
             child: Column(
               children: [
-                // ============================================================
-                // HEADER AVEC TITRE + SÉLECTEUR DE NIVEAU + BOUTON CHAT
-                // ============================================================
+                // HEADER
                 _buildHeader(subject.name, isDark),
 
-                // ============================================================
                 // BARRE DE RECHERCHE
-                // ============================================================
                 _buildSearchBar(isDark),
 
-                // ============================================================
                 // LISTE DES VIDÉOS
-                // ============================================================
                 Expanded(
                   child: Consumer<VideoProvider>(
                     builder: (context, provider, _) {
@@ -212,12 +200,17 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
             ),
           ),
 
-          // ✅ Sélecteur de niveau (au lieu du nombre de messages)
+          // Sélecteur de niveau
           _buildLevelDropdown(isDark),
 
           const SizedBox(width: 8),
 
-          // ✅ Bouton pour accéder au chat de la matière
+          // Bouton Créer une vidéo
+          _buildCreateVideoButton(isDark),
+
+          const SizedBox(width: 8),
+
+          // Bouton Chat
           _buildChatButton(isDark),
         ],
       ),
@@ -225,7 +218,7 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
   }
 
   // ============================================================
-  // SÉLECTEUR DE NIVEAU (DROPDOWN)
+  // SÉLECTEUR DE NIVEAU
   // ============================================================
 
   Widget _buildLevelDropdown(bool isDark) {
@@ -273,7 +266,49 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
   }
 
   // ============================================================
-  // BOUTON CHAT DE LA MATIÈRE
+  // BOUTON CRÉER UNE VIDÉO
+  // ============================================================
+
+  Widget _buildCreateVideoButton(bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openCreateVideo,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white : AppColors.textPrimary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.add,
+                size: 16,
+                color: isDark ? AppColors.textPrimary : Colors.white,
+              ),
+              if (!widget.isMobile) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'Créer',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textPrimary : Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BOUTON CHAT
   // ============================================================
 
   Widget _buildChatButton(bool isDark) {
@@ -467,7 +502,7 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
   }
 
   // ============================================================
-  // ACTIONS
+  // ACTIONS (une seule fois !)
   // ============================================================
 
   void _openVideo(VideoScript video) {
@@ -492,6 +527,22 @@ class _DashboardSubjectViewState extends State<DashboardSubjectView> {
       arguments: {
         'subjectId': subject.id,
         'subjectName': subject.name,
+      },
+    );
+  }
+
+  void _openCreateVideo() {
+    final dashboardProvider = context.read<DashboardProvider>();
+    final subject = dashboardProvider.selectedSubject;
+    if (subject == null) return;
+
+    Navigator.pushNamed(
+      context,
+      AppRoutes.createVideo,
+      arguments: {
+        'subjectId': subject.id,
+        'subjectName': subject.name,
+        'level': _selectedLevel,
       },
     );
   }

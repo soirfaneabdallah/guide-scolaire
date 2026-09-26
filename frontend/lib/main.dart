@@ -15,11 +15,12 @@ import 'features/home/presentation/screens/home_screen.dart';
 import 'core/network/api_client.dart';
 import 'core/routing/app_router.dart';
 import 'core/l10n/app_localizations.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';   // ← AJOUTER
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // ✅ Initialiser Firebase si utilisé
+  setUrlStrategy(PathUrlStrategy());  
+
   // await Firebase.initializeApp();
   
   runApp(const MyApp());

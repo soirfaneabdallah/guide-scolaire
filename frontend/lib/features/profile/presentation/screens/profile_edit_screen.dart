@@ -201,8 +201,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 items: const [
                   '6ème', '5ème', '4ème', '3ème',
                   'Seconde', 'Première', 'Terminale',
-                  'Licence 1', 'Licence 2', 'Licence 3',
-                  'Master 1', 'Master 2',
+                
                 ],
                 onChanged: (value) {
                   setState(() {
